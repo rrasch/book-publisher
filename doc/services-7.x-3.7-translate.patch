@@ -1,0 +1,92 @@
+--- node_resource.inc.bak	2014-09-14 20:44:47.143651350 -0400
++++ node_resource.inc	2014-09-20 12:17:48.329524446 -0400
+@@ -38,6 +38,37 @@
+           'access arguments' => array('create'),
+           'access arguments append' => TRUE,
+         ),
++        'translate' => array(
++          'help' => 'Translate a node',
++          'file' => array('type' => 'inc', 'module' => 'services', 'name' => 'resources/node_resource'),
++          'callback' => '_node_resource_translate',
++          'args' => array(
++            array(
++              'name' => 'nid',
++              'optional' => FALSE,
++              'source' => array('path' => 0),
++              'type' => 'int',
++              'description' => 'The nid of the node to translate',
++            ),
++            array(
++              'name' => 'values',
++              'optional' => FALSE,
++              'source' => array('data' => 'values'),
++              'type' => 'array',
++              'description' => 'The node data to add to translation',
++            ),
++            array(
++              'name' => 'language',
++              'optional' => FALSE,
++              'source' => array('data' => 'language'),
++              'type' => 'string',
++              'description' => 'The language to translate to',
++            ),
++          ),
++          'access callback' => '_node_resource_access',
++          'access arguments' => array('update'),
++          'access arguments append' => TRUE,
++        ),
+         'update' => array(
+           'help' => 'Update a node',
+           'file' => array('type' => 'inc', 'module' => 'services', 'name' => 'resources/node_resource'),
+@@ -309,9 +340,10 @@
+   // but always make the node author default to the current user (if the user
+   // has permission to change it, $form_state['values'] will override this
+   // default when the form is submitted).
+-  $stub_node = (object) array_intersect_key($node, array_flip(array('type', 'language', 'tnid')));
+-  $stub_node->name = $user->name;
+-  drupal_form_submit($node_type . '_node_form', $form_state, (object)$stub_node);
++#   $stub_node = (object) array_intersect_key($node, array_flip(array('type', 'language', 'tnid')));
++#   $stub_node->name = $user->name;
++#   drupal_form_submit($node_type . '_node_form', $form_state, (object)$stub_node);
++  drupal_form_submit($node_type . '_node_form', $form_state, (object)$node);
+ 
+   if ($errors = form_get_errors()) {
+     return services_error(implode(" ", $errors), 406, array('form_errors' => $errors));
+@@ -349,6 +381,26 @@
+   }
+ }
+ 
++function _node_resource_translate($nid, $values, $new_lang) {
++  $node = node_load($nid);
++
++  $handler = entity_translation_get_handler('node', $node, TRUE);
++
++  $translation = array(
++    'translate' => 0,
++    'status' => 1,
++    'language' => $new_lang, // here is the language you're translating to
++    'source' => 'en',        // here is the source language
++  );
++
++  $handler->setTranslation($translation, $values);
++
++  field_attach_update('node', $node);
++#   node_save($node);
++
++  return TRUE;
++}
++
+ /**
+  * Updates a new node based on submitted values.
+  *
+@@ -395,6 +447,10 @@
+   $node_type = $node['type'];
+   node_object_prepare($old_node);
+ 
++  if ($node['tnid']) {
++    $old_node->tnid = $node['tnid'];
++  }
++
+   // Setup form_state.
+   $form_state = array();
+   $form_state['values'] = $node;

@@ -1,0 +1,80 @@
+# $Id: kdurc.lossless 14647 2015-04-26 15:21:45Z rr102 $
+#
+# Command line switch file for kdu_compress based on the following
+# document:
+# http://dltj.org/article/lossless-jpeg2000/
+
+##
+# rate
+# One or more bit-rates, expressed in terms of the ratio between the
+# total number of compressed bits (including headers) and the
+# product of the largest horizontal and vertical image component
+# dimensions. A dash, “-“, may be used in place of the first
+# bit-rate in the list to indicate that the final quality layer
+# should include all compressed bits. Specifying a very large rate
+# target is fundamentally different to using the dash, “-“, because
+# the former approach may cause the incremental rate allocator to
+# discard terminal coding passes which do not lie on the
+# rate-distortion convex hull. This means that reversible
+# compression might not yield a truly lossless representation if you
+# specify `-rate’ without a dash for the first rate target, no
+# matter how large the largest rate target is.
+# Default: rate=1.5
+
+-rate -,1,0.5,0.25
+
+# ##
+# # Slope 
+# # Default: slope=51651,51337,51186,50804,50548,50232
+# 
+# -slope 51651,51337,51186,50804,50548,50232
+# 
+# ##
+# # Clayers 
+# # Default: Clayers=6
+# 
+# Clayers=6
+
+##
+# Clevels
+# Number of wavelet decomposition levels, or stages.
+# Default: Clevels=0
+
+Clevels=5
+
+##
+# Creversible
+# Reversible compression?
+# Default: Creversible=yes
+
+Creversible=yes
+
+# ##
+# # Cprecincts
+# # Default: 		Cprecincts={256,256},{256,256},{128,128}
+# 
+# Cprecincts={256,256},{256,256},{128,128}
+# 
+# ##
+# # Corder
+# # Default: 		Corder=RPCL
+# 
+# Corder=RPCL
+# 
+# ##
+# # ORGgen_plt
+# # Default: 		ORGgen_plt=yes
+# 
+# ORGgen_plt=yes
+# 
+# ##
+# # ORGtparts
+# # Default: 		ORGtparts=R
+# 
+# ORGtparts=R
+# 
+# ##
+# # Cblk
+# # Default: 		Cblk={32,32}
+# 
+# Cblk={32,32}

@@ -1,0 +1,12 @@
+diff -ur WebService-Solr-0.23.orig/lib/WebService/Solr.pm WebService-Solr-0.23/lib/WebService/Solr.pm
+--- WebService-Solr-0.23.orig/lib/WebService/Solr.pm	2014-02-07 17:58:00.000000000 -0500
++++ WebService-Solr-0.23/lib/WebService/Solr.pm	2015-02-07 12:18:17.908386510 -0500
+@@ -182,7 +182,7 @@
+     my $req = HTTP::Request->new(
+         POST => $url,
+         HTTP::Headers->new( Content_Type => 'text/xml; charset=utf-8' ),
+-        '<?xml version="1.0" encoding="UTF-8"?>' . encode( 'utf8', "$xml" )
++        '<?xml version="1.0" encoding="UTF-8"?>' . $xml
+     );
+ 
+     my $http_response = $self->agent->request( $req );

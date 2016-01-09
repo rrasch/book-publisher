@@ -1,0 +1,43 @@
+diff -ur v6_4_1-01187N.orig/apps/image/image_in.cpp v6_4_1-01187N/apps/image/image_in.cpp
+--- v6_4_1-01187N.orig/apps/image/image_in.cpp	2011-05-27 09:46:24.000000000 -0400
++++ v6_4_1-01187N/apps/image/image_in.cpp	2015-02-05 15:48:30.721930482 -0500
+@@ -39,6 +39,9 @@
+ #include <string.h>
+ #include <math.h>
+ #include <assert.h>
++#ifdef KDU_INCLUDE_TIFF
++#include <tiff.h>
++#endif // KDU_INCLUDE_TIFF
+ // Core includes
+ #include "kdu_messaging.h"
+ #include "kdu_sample_processing.h"
+diff -ur v6_4_1-01187N.orig/apps/make/Makefile-Linux-x86-64-gcc v6_4_1-01187N/apps/make/Makefile-Linux-x86-64-gcc
+--- v6_4_1-01187N.orig/apps/make/Makefile-Linux-x86-64-gcc	2011-05-27 09:46:24.000000000 -0400
++++ v6_4_1-01187N/apps/make/Makefile-Linux-x86-64-gcc	2015-02-05 20:33:34.250742302 -0500
+@@ -7,7 +7,7 @@
+ C_OPT = -O2 -DNDEBUG -Wall -Wno-uninitialized -Wno-deprecated $(KDU_GLIBS)
+ C_OPT += -DKDU_X86_INTRINSICS -msse2 -msse3 -mssse3 -m64
+ # C_OPT	 += -DKDU_NO_SSSE3 # Uncomment if you have to remove "-msse3"/"-mssse3"
+-DEFINES = -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 # Remove for 32-bit I/O
++DEFINES = -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DKDU_INCLUDE_TIFF # Remove for 32-bit I/O
+ #DEFINES += -DKDU_CUSTOM_TEXT   # See "Internationalization" in "Compilation_Instructions.txt"
+ 
+ CFLAGS = $(INCLUDES) $(C_OPT) $(DEFINES)
+@@ -29,7 +29,7 @@
+ 	$(CC) $(CFLAGS) ../kdu_compress/kdu_compress.cpp \
+ 	      args.o image_in.o kdu_tiff.o palette.o jp2.o jpx.o \
+ 	      roi_sources.o $(LIB_SRC) \
+-	      -o $(BIN_DIR)/kdu_compress $(LIBS)
++	      -o $(BIN_DIR)/kdu_compress $(LIBS) -ltiff
+ 
+ kdu_expand :: args.o image_out.o kdu_tiff.o jp2.o jpx.o ../kdu_expand/kdu_expand.cpp $(LIB_SRC)
+ 	$(CC) $(CFLAGS) ../kdu_expand/kdu_expand.cpp \
+@@ -139,7 +139,7 @@
+ 
+ image_in.o :: ../image/image_in.cpp
+ 	$(CC) $(CFLAGS) -c ../image/image_in.cpp \
+-	      -o image_in.o
++	      -o image_in.o -libtiff
+ 
+ image_out.o :: ../image/image_out.cpp
+ 	$(CC) $(CFLAGS) -c ../image/image_out.cpp \
