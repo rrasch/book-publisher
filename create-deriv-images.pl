@@ -91,6 +91,10 @@ for my $id (@ids)
 	for (my $i = 0; $i < @deriv_mkrs; $i++)
 	{
 		my $exif = ImageInfo($deriv_mkrs[$i]);
+		if ($$exif{Error})
+		{
+			$log->logdie("Problem with $deriv_mkrs[$i]: $$exif{Error}");
+		}
 		push(@exif_data, $exif);
 		$stat->add_data($$exif{XResolution});
 	}
