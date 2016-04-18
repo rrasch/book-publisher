@@ -1,6 +1,7 @@
+%define gitver	.git.%(date +"%Y%m%d")
 %define name	book-publisher
 %define version	1.0.1
-%define release	1.dlts%{?dist}
+%define release	1.dlts%{?gitver}%{?dist}
 %define dlibdir	/usr/local/dlib/%{name}
 %define liburl	https://github.com/rrasch/libpublishing
 
@@ -96,7 +97,8 @@ cd %{name}
 
 mkdir -p -m 775 %{buildroot}%{dlibdir}
 
-cp -r bin  %{buildroot}%{dlibdir}
+# cp -r bin  %{buildroot}%{dlibdir}
+mkdir -p %{buildroot}%{dlibdir}/bin
 cp -r conf %{buildroot}%{dlibdir}
 cp -r doc  %{buildroot}%{dlibdir}
 cp -r lib  %{buildroot}%{dlibdir}
