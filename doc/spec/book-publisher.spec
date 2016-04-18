@@ -1,7 +1,8 @@
 %define name	book-publisher
-%define version	1.0
+%define version	1.0.1
 %define release	1.dlts%{?dist}
 %define dlibdir	/usr/local/dlib/%{name}
+%define liburl	https://github.com/rrasch/libpublishing
 
 %if %{undefined __perl_provides}
 %define __perl_provides /usr/lib/rpm/perl.prov
@@ -18,7 +19,7 @@ URL:		https://github.com/rrasch/%{name}
 BuildRoot:	%{_tmppath}/%{name}-root
 BuildArch:	noarch
 BuildRequires:	perl
-BuildRequires:	subversion
+BuildRequires:	git
 Requires:	ImageMagick
 Requires:	kakadu
 Requires:	libtiff
@@ -41,6 +42,8 @@ rm -rf %{name}
 # svn export %{url}/trunk %{name}
 git clone %{url}.git %{name}
 cd %{name}
+git clone %{liburl}.git lib
+rm -rf .git lib/.git
 
 EXCLUDE_MODULES=`find lib -name '*.pm' \
 	| sed 's,^lib/,,' \
@@ -82,6 +85,7 @@ chmod +x %{__perl_requires}
 
 perl -pi -e 's,FindBin::Bin/lib,FindBin::Bin/../lib,' *.pl
 perl -pi -e 's,dirname\(abs_path\(\$0\)\),"%{dlibdir}",' *.pl
+perl -pi -e 's,/etc/content-publishing/book,/usr/local/dlib/content_publishing/book/conf,' *.pl
 perl -pi -e 's,./lib/simplehtmldom,../lib/simplehtmldom,' fix-hocr.php
 
 %build
