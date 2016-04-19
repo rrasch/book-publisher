@@ -92,7 +92,7 @@ for my $id (@ids)
 		next;
 	}
 
-	my $mets = SourceEntityMETS->new($mets_file);
+	my $mets = SourceEntityMETS->new($mets_file, $log);
 
 	# find source SE id
 	my $id = $mets->get_id();
