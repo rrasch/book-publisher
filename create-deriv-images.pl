@@ -102,6 +102,8 @@ for my $id (@ids)
 	my $resolution;
 	if ($stat->count() == 1) {
 		($resolution) = $stat->get_data();
+	} elsif (!defined($stat->mode())) {
+		$resolution = $stat->min();
 	} else {
 		$resolution = $stat->mode();
 	}
