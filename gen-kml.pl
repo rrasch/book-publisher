@@ -12,6 +12,7 @@ use warnings;
 use Data::Dumper;
 use Getopt::Std;
 use JSON;
+use Log::Log4perl::Level;
 use MODS;
 use MyConfig;
 use MyLogger;
@@ -20,10 +21,18 @@ use Util;
 use XML::LibXML;
 
 
-our $opt_r;  # rstar directory
-getopts('r:');
-
 my $log = MyLogger->get_logger();
+
+our $opt_q;
+our $opt_r;  # rstar directory
+getopts('qr:');
+
+# quiet mode
+if ($opt_q)
+{
+	MyLogger->get_logger('Util')->level($WARN);
+	$log->level($WARN)
+}
 
 my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
 
@@ -52,6 +61,7 @@ $balloon_style->appendChild($text);
 $style->appendChild($balloon_style);
 $document->appendChild($style);
 
+my $num_placemarks;
 
 for my $id (@ids)
 {
@@ -61,14 +71,22 @@ for my $id (@ids)
 	my $aux_dir  = "$wip_dir/$id/aux";
 
 	my $mets_file = "$data_dir/${id}_mets.xml";
+	if (!-f $mets_file)
+	{
+		$log->warn("METS file $mets_file doesn't exist.");
+		next;
+	}
 	my $mets = SourceEntityMETS->new($mets_file);
 	my $mods_file = $mets->get_mods_file;
+	$log->debug("MODS file: $mods_file");
 	my $mods = MODS->new($mods_file);
 	my $mods_lang = $mods->get_languages();
 	$mods->set_language("Latn") if $mods_lang->{Latn};
 
 	my $coord_file = "$aux_dir/${id}_geo_coord.json";
+	$log->debug("Coordinates file: $coord_file");
 	my $coord;
+	my $out;
 	if (-f $coord_file)
 	{
 		local $/ = undef;
@@ -80,14 +98,21 @@ for my $id (@ids)
 	else
 	{
 		my $coord_list = $mods->geo_coordinates();
+		if (!$coord_list)
+		{
+			$log->warn("Can't find coordinates for $id");
+			next;
+		}
 		$log->debug(Dumper($coord_list));
 		$coord = $coord_list->[0];
 		my $json = to_json($coord, {utf8 => 1, pretty => 1});
-		open(my $out, ">$coord_file")
+		open($out, ">$coord_file")
 		  or $log->logdie("can't open $coord_file: $!");
 		print $out $json;
 		close($out);
 	}
+
+	$num_placemarks++;
 	
 	my $lat = $coord->{latitude};
 	my $lng = $coord->{longitude};
@@ -100,7 +125,7 @@ for my $id (@ids)
 	$style_url->appendTextNode('#theBalloonStyle');
 	my $name_placemark  = $xml->createElement("name");
 	$name_placemark->appendTextNode($mods->title);
-	my $desc  = $xml->createElement("description");
+	my $description  = $xml->createElement("description");
 
 	my $title = $mods->title;
 	my $authors = join(' - ', $mods->author);
@@ -112,32 +137,141 @@ for my $id (@ids)
 	my $call_num = $mods->call_number || "";
 	my $handle = Util::get_handle("$wip_dir/$id/handle");
 
-	my $desc_html = <<EOF;
+# 	my $maps_html_file = "$aux_dir/${id}_gmaps.html";
+	my $maps_html_file = "/var/www/html/maps/${id}_gmaps.html";
+	$log->debug("Google maps html file: $maps_html_file");
+	open($out, ">$maps_html_file")
+	  or $log->logdie("Can't open $maps_html_file: $!");
+	print $out <<EOF;
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Info windows</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
 
-        <div class="left">
-          Title<br/>
-          Author<br/>
-          Publisher<br/>
-          Place of Publication<br/>
-          Publication Date<br/>
-          Language<br/>
-          Description<br/>
-          Call Number<br/>
-        </div>
+      // This example displays a marker at the center of Australia.
+      // When the user clicks the marker, an info window opens.
+
+      function initMap() {
+        var coord = {lat: $coord->{latitude}, lng: $coord->{longitude}};
+        var map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 4,
+          center: coord,
+	      mapTypeId: google.maps.MapTypeId.HYBRID
+        });
+
+        var contentString = '<div id="content">'+
+            '<div id="siteNotice">'+
+            '</div>'+
+            '<h1 id="firstHeading" class="firstHeading">$title</h1>'+
+            '<div id="bodyContent">'+
+            '<div>$desc_str</div>'+
+            '<div>Author: $authors</div>'+
+            '<div>Publisher: $publisher</div>'+
+            '<div>Date: $date</div>'+
+            '<div>Language: $lang</div>'+
+            '<div>Call Number: $call_num</div>'+
+            '<a href="http://hdl.handlle.net/$handle">Handle</a>'+
+            '</div>'+
+            '</div>';
+
+        var infowindow = new google.maps.InfoWindow({
+          content: contentString
+        });
+
+        var marker = new google.maps.Marker({
+          position: coord,
+          map: map,
+          title: '$title'
+        });
+        marker.addListener('click', function() {
+          infowindow.open(map, marker);
+        });
+      }
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?callback=initMap">
+    </script>
+  </body>
+</html>
+EOF
+	close($out);
+
+	# XXX: Google Maps API strips out CSS so figure out
+	# hpw to circumvent this
+# 	my $desc_html = <<EOF;
+# 
+#         <div class="left">
+#           Title<br/>
+#           Author<br/>
+#           Publisher<br/>
+#           Place of Publication<br/>
+#           Publication Date<br/>
+#           Language<br/>
+#           Description<br/>
+#           Call Number<br/>
+#         </div>
+#         <div>
+#           <a href="http://hdl.handlle.net/$handle">$title</a><br/>
+#           $authors<br/>
+#           $publisher<br/>
+#           $location<br/>
+#           $date<br/>
+#           $lang<br/>
+#           $desc_str<br/>
+#           $call_num<br/>
+#         </div>
+# EOF
+
+	my $desc_html = <<EOF;
+        <div>$desc_str</div>
         <div>
-          <a href="http://hdl.handlle.net/$handle">$title</a><br/>
-          $authors<br/>
-          $publisher<br/>
-          $location<br/>
-          $date<br/>
-          $lang<br/>
-          $desc_str<br/>
-          $call_num<br/>
+          <table>
+            <tr>
+              <td>Handle</td>
+              <td><a href="http://hdl.handlle.net/$handle">$handle</a></td>
+            </tr>
+            <tr>
+              <td>Author</td>
+              <td>$authors</td>
+            </tr>
+            <tr>
+              <td>Publisher</td>
+              <td>$publisher, $location, $date</td>
+            </tr>
+            <tr>
+              <td>Language</td>
+              <td>$lang</td>
+            </tr>
+            <tr>
+              <td>Call Number</td>
+              <td>$call_num</td>
+            </tr>
+            <tr>
+              <td>Geo Subject</td>
+              <td>$coord->{location}</td>
+            </tr>
+          </table>
         </div>
 EOF
 
 	my $cdata_desc = $xml->createCDATASection($desc_html);
-	$desc->appendChild($cdata_desc);
+	$description->appendChild($cdata_desc);
 	
 	my $point = $xml->createElement("Point");
 	my $coordinates = $xml->createElement("coordinates");
@@ -146,11 +280,14 @@ EOF
 
 	$placemark->appendChild($style_url);
 	$placemark->appendChild($name_placemark);
-	$placemark->appendChild($desc);
+	$placemark->appendChild($description);
 	$placemark->appendChild($point);
 }
 
 $xml->setDocumentElement($kml);
 
-print $xml->toString(1);
+if ($num_placemarks)
+{
+	print $xml->toString(1);
+}
 
