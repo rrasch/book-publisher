@@ -8,7 +8,7 @@
 
 use FindBin;
 use lib "$FindBin::Bin/lib";
-use lib "/etc/content-publishing/book";
+use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
 use Cwd qw(abs_path getcwd);
@@ -62,7 +62,7 @@ if ($opt_q)
 	$log->level($WARN)
 }
 
-my $tmpdir_base = $opt_t || config('tmpdir') || "/content/prod/rstar/tmp";
+my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
 

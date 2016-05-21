@@ -4,7 +4,7 @@
 
 use FindBin;
 use lib "$FindBin::Bin/lib";
-use lib "/etc/content-publishing/book";
+use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
 use Data::Dumper;

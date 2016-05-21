@@ -86,7 +86,7 @@ chmod +x %{__perl_requires}
 
 perl -pi -e 's,FindBin::Bin/lib,FindBin::Bin/../lib,' *.pl
 perl -pi -e 's,dirname\(abs_path\(\$0\)\),"%{dlibdir}",' *.pl
-perl -pi -e 's,/etc/content-publishing/book,/usr/local/dlib/content_publishing/book/conf,' *.pl
+# perl -pi -e 's,/etc/content-publishing/book,/usr/local/dlib/content_publishing/book/conf,' *.pl
 perl -pi -e 's,./lib/simplehtmldom,../lib/simplehtmldom,' fix-hocr.php
 
 %build
