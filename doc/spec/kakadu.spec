@@ -64,7 +64,11 @@ to encourage the widespread adoption of JPEG2000.
 
 
 %build
+%if 0%{?centos} > 0
 export JAVA_HOME=/usr/java/latest
+%else
+export JAVA_HOME=/usr/lib/jvm/java
+%endif
 export PATH=$JAVA_HOME/bin:$PATH
 
 pushd %{real_version}/make
