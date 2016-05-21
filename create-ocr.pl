@@ -25,15 +25,11 @@ $SIG{HUP} = 'IGNORE';
 
 my $log = MyLogger->get_logger();
 
-my $tmpdir = File::Temp::tempdir(
-	CLEANUP => 1,
-	DIR     => "/tmp",
-);
-
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
-getopts('fqr:');
+our $opt_t;  # tmp directory base
+getopts('fqr:t:');
 
 # quiet mode
 if ($opt_q)
@@ -41,6 +37,10 @@ if ($opt_q)
 	MyLogger->get_logger('Util')->level($WARN);
 	$log->level($WARN)
 }
+
+my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
+my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
+$log->debug("Temp directory: $tmpdir");
 
 my $host = hostname();
 

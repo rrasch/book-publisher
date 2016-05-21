@@ -40,8 +40,6 @@ $SIG{__WARN__} = sub {
 	$log->logdie(@_);
 };
 
-my $tmpdir = tempdir(CLEANUP => 1);
-
 my $host = hostname();
 
 # find directory where this script resides
@@ -49,8 +47,8 @@ my $app_home = dirname(abs_path($0));
 
 my $kdurc_file = "$app_home/conf/kdurc";
 
-our ($opt_f, $opt_q, $opt_r);
-getopts('fqr:');
+our ($opt_f, $opt_q, $opt_r, $opt_t);
+getopts('fqr:t:');
 
 # quiet mode
 if ($opt_q)
@@ -58,6 +56,10 @@ if ($opt_q)
 	MyLogger->get_logger('Util')->level($WARN);
 	$log->level($WARN)
 }
+
+my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
+my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
+$log->debug("Temp directory: $tmpdir");
 
 my $wip_dir = ($opt_r || config('rstar_dir')) . "/wip/se";
 

@@ -36,8 +36,9 @@ our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
 our $opt_b;  # border width in pixels
 our $opt_r;  # rstar directory
+our $opt_t;  # tmp directory base
 
-getopts('fqb:r:');
+getopts('fqb:r:t:');
 
 $opt_b ||= '0';
 
@@ -61,11 +62,9 @@ if ($opt_q)
 	$log->level($WARN)
 }
 
-my $tmp_dir = tempdir(
-	DIR     => "/content/prod/rstar/tmp",
-	CLEANUP => 1
-);
-$log->debug("Temp directory: $tmp_dir");
+my $tmpdir_base = $opt_t || config('tmpdir') || "/content/prod/rstar/tmp";
+my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
+$log->debug("Temp directory: $tmpdir");
 
 my $host = hostname();
 
@@ -147,8 +146,8 @@ for my $id (@ids)
 		}
 
 		my $basename     = stitch_basename($id, $page_num, $page_num + 1);
-		my $tmp_tif_file = "$tmp_dir/$basename.tif";
-		my $tmp_jp2_file = "$tmp_dir/$basename.jp2";
+		my $tmp_tif_file = "$tmpdir/$basename.tif";
+		my $tmp_jp2_file = "$tmpdir/$basename.jp2";
 		my $out_file     = "$aux_dir/$basename.jp2";
 
 		if (!$opt_f && -f $out_file)

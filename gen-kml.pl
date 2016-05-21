@@ -23,9 +23,10 @@ use XML::LibXML;
 
 my $log = MyLogger->get_logger();
 
-our $opt_q;
+our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
-getopts('qr:');
+our $opt_t;  # tmp directory base
+getopts('qr:t:');
 
 # quiet mode
 if ($opt_q)
@@ -33,6 +34,10 @@ if ($opt_q)
 	MyLogger->get_logger('Util')->level($WARN);
 	$log->level($WARN)
 }
+
+my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
+my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
+$log->debug("Temp directory: $tmpdir");
 
 my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
 
