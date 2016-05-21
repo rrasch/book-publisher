@@ -62,7 +62,7 @@ if ($opt_q)
 	$log->level($WARN)
 }
 
-my $tmpdir_base = $opt_t || config('tmpdir') || "/content/prod/rstar/tmp";
+my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
 
