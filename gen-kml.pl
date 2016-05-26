@@ -10,6 +10,7 @@ use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
 use Data::Dumper;
+use File::Copy;
 use Getopt::Std;
 use JSON;
 use Log::Log4perl::Level;
@@ -26,7 +27,8 @@ my $log = MyLogger->get_logger();
 our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
-getopts('qr:t:');
+our $opt_w;  # www directory
+getopts('qr:t:w:');
 
 # quiet mode
 if ($opt_q)
@@ -88,6 +90,7 @@ for my $id (@ids)
 	my $mods_lang = $mods->get_languages();
 	$mods->set_language("Latn") if $mods_lang->{Latn};
 
+	my $tmp_file = "$tmpdir/${id}_geo_coord.json";
 	my $coord_file = "$aux_dir/${id}_geo_coord.json";
 	$log->debug("Coordinates file: $coord_file");
 	my $coord;
@@ -95,10 +98,12 @@ for my $id (@ids)
 	if (-f $coord_file)
 	{
 		local $/ = undef;
-		open(my $in, "<$coord_file")
-		  or $log->logdie("can't open $coord_file: $!");
+		open(my $in, "<$tmp_file")
+		  or $log->logdie("can't open $tmp_file: $!");
 		$coord = from_json(<$in>);
 		close($in);
+		move($tmp_file, $coord_file)
+		  or $log->logdie("can't move $tmp_file to $coord_file: $!");
 	}
 	else
 	{
@@ -142,11 +147,12 @@ for my $id (@ids)
 	my $call_num = $mods->call_number || "";
 	my $handle = Util::get_handle("$wip_dir/$id/handle");
 
-# 	my $maps_html_file = "$aux_dir/${id}_gmaps.html";
-	my $maps_html_file = "/var/www/html/maps/${id}_gmaps.html";
+	my $www_dir = $opt_w || $aux_dir;
+	$tmp_file = "$tmp_dir/${id}_gmaps.html";
+	my $maps_html_file = "$aux_dir/${id}_gmaps.html";
 	$log->debug("Google maps html file: $maps_html_file");
-	open($out, ">$maps_html_file")
-	  or $log->logdie("Can't open $maps_html_file: $!");
+	open($out, ">$tmp_file")
+	  or $log->logdie("Can't open $tmp_file: $!");
 	print $out <<EOF;
 <!DOCTYPE html>
 <html>
@@ -216,6 +222,8 @@ for my $id (@ids)
 </html>
 EOF
 	close($out);
+	move($tmp_file, $maps_html_file)
+	  or $log->logdie("can't move $tmp_file to $maps_html_file: $!");
 
 	# XXX: Google Maps API strips out CSS so figure out
 	# hpw to circumvent this
