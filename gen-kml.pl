@@ -11,6 +11,7 @@ use strict;
 use warnings;
 use Data::Dumper;
 use File::Copy;
+use File::Temp qw(tempdir);
 use Getopt::Std;
 use JSON;
 use Log::Log4perl::Level;
@@ -98,12 +99,10 @@ for my $id (@ids)
 	if (-f $coord_file)
 	{
 		local $/ = undef;
-		open(my $in, "<$tmp_file")
-		  or $log->logdie("can't open $tmp_file: $!");
+		open(my $in, "<$coord_file")
+		  or $log->logdie("can't open $coord_file: $!");
 		$coord = from_json(<$in>);
 		close($in);
-		move($tmp_file, $coord_file)
-		  or $log->logdie("can't move $tmp_file to $coord_file: $!");
 	}
 	else
 	{
@@ -116,10 +115,12 @@ for my $id (@ids)
 		$log->debug(Dumper($coord_list));
 		$coord = $coord_list->[0];
 		my $json = to_json($coord, {utf8 => 1, pretty => 1});
-		open($out, ">$coord_file")
-		  or $log->logdie("can't open $coord_file: $!");
+		open($out, ">$tmp_file")
+		  or $log->logdie("can't open $tmp_file: $!");
 		print $out $json;
 		close($out);
+		move($tmp_file, $coord_file)
+		  or $log->logdie("can't move $tmp_file to $coord_file: $!");
 	}
 
 	$num_placemarks++;
@@ -148,8 +149,8 @@ for my $id (@ids)
 	my $handle = Util::get_handle("$wip_dir/$id/handle");
 
 	my $www_dir = $opt_w || $aux_dir;
-	$tmp_file = "$tmp_dir/${id}_gmaps.html";
-	my $maps_html_file = "$aux_dir/${id}_gmaps.html";
+	$tmp_file = "$tmpdir/${id}_gmaps.html";
+	my $maps_html_file = "$www_dir/${id}_gmaps.html";
 	$log->debug("Google maps html file: $maps_html_file");
 	open($out, ">$tmp_file")
 	  or $log->logdie("Can't open $tmp_file: $!");
