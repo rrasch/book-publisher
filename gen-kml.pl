@@ -42,9 +42,16 @@ my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
 
-my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
+my $rstar_dir = $opt_r || $ENV{RSTAR_DIR} || config('rstar_dir');
 
-my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
+my @wip_dirs = map { "$_/wip/se" } split(/:/, $rstar_dir);
+
+my @wip_ids = @ARGV;
+
+if (@wip_dirs > 1 && @wip_ids)
+{
+	$log->logdie("Can't set wip ids if specifying multiple rstar dirs.");
+}
 
 my $xml = XML::LibXML::Document->new("1.0", "UTF-8");
 
@@ -71,90 +78,94 @@ $document->appendChild($style);
 
 my $num_placemarks;
 
-for my $id (@ids)
+for my $wip_dir (@wip_dirs)
 {
-	$log->info("Processing $id");
+	my @ids = @wip_ids ? @wip_ids : Util::get_dir_contents($wip_dir);
 
-	my $data_dir = "$wip_dir/$id/data";
-	my $aux_dir  = "$wip_dir/$id/aux";
+	for my $id (@ids)
+	{
+		$log->info("Processing $id");
 
-	my $mets_file = "$data_dir/${id}_mets.xml";
-	if (!-f $mets_file)
-	{
-		$log->warn("METS file $mets_file doesn't exist.");
-		next;
-	}
-	my $mets = SourceEntityMETS->new($mets_file);
-	my $mods_file = $mets->get_mods_file;
-	$log->debug("MODS file: $mods_file");
-	my $mods = MODS->new($mods_file);
-	my $mods_lang = $mods->get_languages();
-	$mods->set_language("Latn") if $mods_lang->{Latn};
+		my $data_dir = "$wip_dir/$id/data";
+		my $aux_dir  = "$wip_dir/$id/aux";
 
-	my $tmp_file = "$tmpdir/${id}_geo_coord.json";
-	my $coord_file = "$aux_dir/${id}_geo_coord.json";
-	$log->debug("Coordinates file: $coord_file");
-	my $coord;
-	my $out;
-	if (-f $coord_file)
-	{
-		local $/ = undef;
-		open(my $in, "<$coord_file")
-		  or $log->logdie("can't open $coord_file: $!");
-		$coord = from_json(<$in>);
-		close($in);
-	}
-	else
-	{
-		my $coord_list = $mods->geo_coordinates();
-		if (!$coord_list)
+		my $mets_file = "$data_dir/${id}_mets.xml";
+		if (!-f $mets_file)
 		{
-			$log->warn("Can't find coordinates for $id");
+			$log->warn("METS file $mets_file doesn't exist.");
 			next;
 		}
-		$log->debug(Dumper($coord_list));
-		$coord = $coord_list->[0];
-		my $json = to_json($coord, {utf8 => 1, pretty => 1});
+		my $mets      = SourceEntityMETS->new($mets_file);
+		my $mods_file = $mets->get_mods_file;
+		$log->debug("MODS file: $mods_file");
+		my $mods      = MODS->new($mods_file);
+		my $mods_lang = $mods->get_languages();
+		$mods->set_language("Latn") if $mods_lang->{Latn};
+
+		my $tmp_file   = "$tmpdir/${id}_geo_coord.json";
+		my $coord_file = "$aux_dir/${id}_geo_coord.json";
+		$log->debug("Coordinates file: $coord_file");
+		my $coord;
+		my $out;
+		if (-f $coord_file)
+		{
+			local $/ = undef;
+			open(my $in, "<$coord_file")
+			  or $log->logdie("can't open $coord_file: $!");
+			$coord = from_json(<$in>);
+			close($in);
+		}
+		else
+		{
+			my $coord_list = $mods->geo_coordinates();
+			if (!$coord_list)
+			{
+				$log->warn("Can't find coordinates for $id");
+				next;
+			}
+			$log->debug(Dumper($coord_list));
+			$coord = $coord_list->[0];
+			my $json = to_json($coord, {utf8 => 1, pretty => 1});
+			open($out, ">$tmp_file")
+			  or $log->logdie("can't open $tmp_file: $!");
+			print $out $json;
+			close($out);
+			move($tmp_file, $coord_file)
+			  or $log->logdie("can't move $tmp_file to $coord_file: $!");
+		}
+
+		$num_placemarks++;
+
+		my $lat = $coord->{latitude};
+		my $lng = $coord->{longitude};
+		$log->debug("Coordinates: $lat,$lng");
+
+		my $placemark = $xml->createElement("Placemark");
+		$document->appendChild($placemark);
+
+		my $style_url = $xml->createElement("styleURL");
+		$style_url->appendTextNode('#theBalloonStyle');
+		my $name_placemark = $xml->createElement("name");
+		$name_placemark->appendTextNode($mods->title);
+		my $description = $xml->createElement("description");
+
+		my $title     = $mods->title;
+		my $authors   = join(' - ', $mods->author);
+		my $publisher = $mods->publisher;
+		my $location  = $mods->pub_loc;
+		my $date      = $mods->pub_date_formatted;
+		my $lang      = $mods->language;
+		my $desc_str  = $mods->description || "";
+		my $call_num  = $mods->call_number || "";
+		my $handle    = Util::get_handle("$wip_dir/$id/handle");
+
+		my $www_dir = $opt_w || $aux_dir;
+		$tmp_file = "$tmpdir/${id}_gmaps.html";
+		my $maps_html_file = "$www_dir/${id}_gmaps.html";
+		$log->debug("Google maps html file: $maps_html_file");
 		open($out, ">$tmp_file")
-		  or $log->logdie("can't open $tmp_file: $!");
-		print $out $json;
-		close($out);
-		move($tmp_file, $coord_file)
-		  or $log->logdie("can't move $tmp_file to $coord_file: $!");
-	}
-
-	$num_placemarks++;
-	
-	my $lat = $coord->{latitude};
-	my $lng = $coord->{longitude};
-	$log->debug("Coordinates: $lat,$lng");
-
-	my $placemark = $xml->createElement("Placemark");
-	$document->appendChild($placemark);
-
-	my $style_url = $xml->createElement("styleURL");
-	$style_url->appendTextNode('#theBalloonStyle');
-	my $name_placemark  = $xml->createElement("name");
-	$name_placemark->appendTextNode($mods->title);
-	my $description  = $xml->createElement("description");
-
-	my $title = $mods->title;
-	my $authors = join(' - ', $mods->author);
-	my $publisher = $mods->publisher;
-	my $location = $mods->pub_loc;
-	my $date = $mods->pub_date_formatted;
-	my $lang = $mods->language;
-	my $desc_str = $mods->description || "";
-	my $call_num = $mods->call_number || "";
-	my $handle = Util::get_handle("$wip_dir/$id/handle");
-
-	my $www_dir = $opt_w || $aux_dir;
-	$tmp_file = "$tmpdir/${id}_gmaps.html";
-	my $maps_html_file = "$www_dir/${id}_gmaps.html";
-	$log->debug("Google maps html file: $maps_html_file");
-	open($out, ">$tmp_file")
-	  or $log->logdie("Can't open $tmp_file: $!");
-	print $out <<EOF;
+		  or $log->logdie("Can't open $tmp_file: $!");
+		print $out <<EOF;
 <!DOCTYPE html>
 <html>
   <head>
@@ -222,13 +233,13 @@ for my $id (@ids)
   </body>
 </html>
 EOF
-	close($out);
-	move($tmp_file, $maps_html_file)
-	  or $log->logdie("can't move $tmp_file to $maps_html_file: $!");
+		close($out);
+		move($tmp_file, $maps_html_file)
+		  or $log->logdie("can't move $tmp_file to $maps_html_file: $!");
 
-	# XXX: Google Maps API strips out CSS so figure out
-	# hpw to circumvent this
-# 	my $desc_html = <<EOF;
+# 		# XXX: Google Maps API strips out CSS so figure out
+# 		# hpw to circumvent this
+# 		my $desc_html = <<EOF;
 # 
 #         <div class="left">
 #           Title<br/>
@@ -252,7 +263,7 @@ EOF
 #         </div>
 # EOF
 
-	my $desc_html = <<EOF;
+		my $desc_html = <<EOF;
         <div>$desc_str</div>
         <div>
           <table>
@@ -284,18 +295,19 @@ EOF
         </div>
 EOF
 
-	my $cdata_desc = $xml->createCDATASection($desc_html);
-	$description->appendChild($cdata_desc);
-	
-	my $point = $xml->createElement("Point");
-	my $coordinates = $xml->createElement("coordinates");
-	$coordinates->appendTextNode("$lng,$lat,0");
-	$point->appendChild($coordinates);
+		my $cdata_desc = $xml->createCDATASection($desc_html);
+		$description->appendChild($cdata_desc);
 
-	$placemark->appendChild($style_url);
-	$placemark->appendChild($name_placemark);
-	$placemark->appendChild($description);
-	$placemark->appendChild($point);
+		my $point       = $xml->createElement("Point");
+		my $coordinates = $xml->createElement("coordinates");
+		$coordinates->appendTextNode("$lng,$lat,0");
+		$point->appendChild($coordinates);
+
+		$placemark->appendChild($style_url);
+		$placemark->appendChild($name_placemark);
+		$placemark->appendChild($description);
+		$placemark->appendChild($point);
+	}
 }
 
 $xml->setDocumentElement($kml);
