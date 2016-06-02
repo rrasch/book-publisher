@@ -209,7 +209,7 @@ for my $wip_dir (@wip_dirs)
             '<div>Date: $date</div>'+
             '<div>Language: $lang</div>'+
             '<div>Call Number: $call_num</div>'+
-            '<a href="http://hdl.handlle.net/$handle">Handle</a>'+
+            '<a href="http://hdl.handle.net/$handle">Handle</a>'+
             '</div>'+
             '</div>';
 
@@ -252,7 +252,7 @@ EOF
 #           Call Number<br/>
 #         </div>
 #         <div>
-#           <a href="http://hdl.handlle.net/$handle">$title</a><br/>
+#           <a href="http://hdl.handle.net/$handle">$title</a><br/>
 #           $authors<br/>
 #           $publisher<br/>
 #           $location<br/>
@@ -269,7 +269,7 @@ EOF
           <table>
             <tr>
               <td>Handle</td>
-              <td><a href="http://hdl.handlle.net/$handle">$handle</a></td>
+              <td><a href="http://hdl.handle.net/$handle">$handle</a></td>
             </tr>
             <tr>
               <td>Author</td>
