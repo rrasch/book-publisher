@@ -65,6 +65,7 @@ if ($opt_q)
 my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
+$ENV{TMPDIR} = $tmpdir;
 
 my $host = hostname();
 
