@@ -149,7 +149,7 @@ for my $id (@ids)
 
 		for my $img_file ($jp2_file, $jpg_file, $hires_file, $lores_file)
 		{
-			convert($tif_file, $img_file);
+			convert($tif_file, $img_file, $params);
 		}
 	}
 }
@@ -177,10 +177,14 @@ sub convert
 			$convert .= " -depth $params->{depth}" if $params->{depth};
 		} elsif ($output_file =~ /\.jpg$/) {
 			$convert .= " -resize 960x720\\> -quality 75";
-		} elsif ($output_file =~ /hires\.tif$/) {
+		} elsif ($output_file =~ /hires\.tif$/
+				&& $params->{resolution} > 200) {
 			$convert .= " -resample 200";
-		} else {
+		} elsif ($output_file =~ /lores\.tif$/
+				&& $params->{resolution} > 96) {
 			$convert .= " -resample 96";
+		} else {
+			$convert = "ln -s $input_file";
 		}
 	}
 	$convert .= " $tmp_file";
