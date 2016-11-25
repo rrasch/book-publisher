@@ -29,8 +29,9 @@ my $log = MyLogger->get_logger();
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
-our $opt_t;  # tmp director base
-getopts('fqr:t:');
+our $opt_t;  # tmp directory base
+our $opt_c;  # compression levels
+getopts('fqr:t:c:');
 
 # quiet mode
 if ($opt_q)
@@ -42,6 +43,7 @@ if ($opt_q)
 my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
+$ENV{TMPDIR} = $tmpdir;
 
 my $host = hostname();
 
@@ -49,18 +51,42 @@ my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 
+# get jpeg compression values
+my ($lo_level, $hi_level);
+if (defined $opt_c) {
+	($lo_level, $hi_level) = sort {$a <=> $b} split(/:/, $opt_c);
+}
+
+# Set default vals for compression. Quality is on higher side
+# since these are book pages.  For normal images we could use
+# values of 70 or below.
+$lo_level ||= 85;
+$hi_level ||= 85;
+$log->debug("Compression levels for pdfs are $lo_level and $hi_level.");
+
+my $paper_width_inches = 8.5;
+my $paper_height_inches = 11;
+
 my $comp_cfg = {
 	hi => {
 		resolution   => 200,
-		jpeg_quality => 85,
+		jpeg_quality => $hi_level,
 	},
 	lo => {
-		resolution   => 96,
-		jpeg_quality => 70,
+		resolution   => 72,
+		jpeg_quality => $lo_level,
 	},
 };
 
 my @comp_profiles = sort keys %$comp_cfg;
+
+for my $prof (@comp_profiles)
+{
+	$comp_cfg->{$prof}{img_width} =
+	  int($paper_width_inches * $comp_cfg->{$prof}{resolution});
+	$comp_cfg->{$prof}{img_height} =
+	  int($paper_height_inches * $comp_cfg->{$prof}{resolution});
+}
 
 for my $id (@ids)
 {
@@ -140,13 +166,30 @@ sub tiff2pdf
 {
 	my ($input_file, $output_file, $profile) = @_;
 
-	my $tmp_tif_file = "$tmpdir/" . basename($input_file);
 	my $tmp_pdf_file = "$tmpdir/" . basename($output_file);
 
+	my $img_dimensions =
+	    $comp_cfg->{$profile}{img_width} . 'x'
+	  . $comp_cfg->{$profile}{img_height};
+
+	my $density =
+	    $comp_cfg->{$profile}{resolution} . 'x'
+	  . $comp_cfg->{$profile}{resolution};
+
 	# Now convert downsampled to pdf
-# 	sys("convert $tmp_tif_file -compress JPEG -quality $comp_cfg->{$profile}{jpeg_quality} $tmp_pdf_file");
-	sys("tiff2pdf -o $tmp_pdf_file -j -q $comp_cfg->{$profile}{jpeg_quality} $input_file");
-	sys("sed -i 's/ColorTransform 0/ColorTransform 1/' $tmp_pdf_file");
+	sys(    "convert $input_file "
+		  . "-resize $img_dimensions "
+		  . "-background black "
+		  . "-gravity center "
+		  . "-extent $img_dimensions "
+		  . "-units PixelsPerInch "
+		  . "-density $density "
+		  . "-compress JPEG "
+		  . "-quality $comp_cfg->{$profile}{jpeg_quality} "
+		  . $tmp_pdf_file);
+
+# 	sys("tiff2pdf -o $tmp_pdf_file -j -q $comp_cfg->{$profile}{jpeg_quality} -p letter $input_file");
+# 	sys("sed -i 's/ColorTransform 0/ColorTransform 1/' $tmp_pdf_file");
 	sys("pdfinfo $tmp_pdf_file");
 
 	$log->info("Moving $tmp_pdf_file to $host:$output_file");
