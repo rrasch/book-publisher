@@ -11,7 +11,7 @@ use strict;
 use warnings;
 use File::Basename;
 use File::Copy;
-use File::Temp;
+use File::Temp qw(tempdir);
 use Getopt::Std;
 use Log::Log4perl::Level;
 use MODS;
@@ -41,6 +41,7 @@ if ($opt_q)
 my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
+$ENV{TMPDIR} = $tmpdir;
 
 my $host = hostname();
 
