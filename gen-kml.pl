@@ -98,6 +98,11 @@ for my $wip_dir (@wip_dirs)
 		my $mets      = SourceEntityMETS->new($mets_file);
 		my $mods_file = $mets->get_mods_file;
 		$log->debug("MODS file: $mods_file");
+		if (!-f $mods_file)
+		{
+			$log->warn("MODS file $mods_file doesn't exist.");
+			next;
+		}
 		my $mods      = MODS->new($mods_file);
 		my $mods_lang = $mods->get_languages();
 		$mods->set_language("Latn") if $mods_lang->{Latn};
