@@ -200,7 +200,7 @@ for my $wip_dir (@wip_dirs)
         var map = new google.maps.Map(document.getElementById('map'), {
           zoom: 4,
           center: coord,
-	      mapTypeId: google.maps.MapTypeId.HYBRID
+          mapTypeId: google.maps.MapTypeId.HYBRID
         });
 
         var contentString = '<div id="content">'+
