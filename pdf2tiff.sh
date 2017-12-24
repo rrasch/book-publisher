@@ -25,6 +25,7 @@ for i in `seq 1 $NUM_PAGES`; do
 		-sOutputFile=page-$i.tif page-$i.pdf
 	if [ $i -gt 1 -a $i -lt $NUM_PAGES ]; then
 		convert page-$i.tif -crop 50%x100% +repage \
+			-colorspace sRGB -type TrueColor \
 			-compress lzw half-%d.tif
 		mv half-0.tif `get_file_name $page_num`
 		page_num=$((page_num+1))
