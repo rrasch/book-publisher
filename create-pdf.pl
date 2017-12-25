@@ -31,7 +31,8 @@ our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
-getopts('fqr:t:c:');
+our $opt_b;  # background color to fill pdf pages
+getopts('fqr:t:c:b:');
 
 # quiet mode
 if ($opt_q)
@@ -63,6 +64,15 @@ if (defined $opt_c) {
 $lo_level ||= 85;
 $hi_level ||= 85;
 $log->debug("Compression levels for pdfs are $lo_level and $hi_level.");
+
+my $bg_color;
+if ($opt_b)
+{
+	$log->debug("Setting background color to $bg_color.");
+	$bg_color = $opt_b;
+}
+
+my $max_page_check = 20;
 
 my $paper_width_inches = 8.5;
 my $paper_height_inches = 11;
@@ -106,6 +116,23 @@ for my $id (@ids)
 
 	my $mets = SourceEntityMETS->new($mets_file);
 
+	my @file_ids = $mets->get_file_ids();
+
+	my $limit = @file_ids < $max_page_check ? @file_ids : $max_page_check;
+
+	if (!$opt_b)
+	{
+		my $num_white = 0;
+		for (my $i = 0; $i < $limit; $i++)
+		{
+			my $input_file = "$aux_dir/$file_ids[$i]_s.jpg";
+			$num_white++ if is_page_white($input_file);
+		}
+		$log->debug("Found $num_white out of $limit white pages.");
+		$bg_color = $num_white > $limit / 2 ? 'white' : 'black';
+		$log->debug("Setting background color to $bg_color.");
+	}
+
 	my $files;
 	for my $profile (@comp_profiles)
 	{
@@ -118,7 +145,7 @@ for my $id (@ids)
 			next;
 		}
 
-		for my $file_id ($mets->get_file_ids())
+		for my $file_id (@file_ids)
 		{
 			my $input_file = "$aux_dir/${file_id}_${profile}res.tif";
 			my $output_file = "$aux_dir/${file_id}_${profile}.pdf";
@@ -162,6 +189,24 @@ sub merge_pdfs
 }
 
 
+# Detect if page is white by drawing one pixel border around
+# image and calling ImageMagick's auto-crop operator.  Returns
+# true if bounding box of cropped image is smaller than geometry
+# of original image.
+sub is_page_white
+{
+	my $input_file = shift;
+	my $orig_dim = sys("convert $input_file -format '%g' info:");
+	my $crop_dim = sys("convert $input_file -bordercolor white "
+		  . "-border 1x1 -format '%\@' info:");
+	$log->debug("Original dimensions: $orig_dim");
+	$log->debug("Crop dimensions: $crop_dim");
+	$orig_dim =~ s/\+.*//;
+	$crop_dim =~ s/\+.*//;
+	$orig_dim ne $crop_dim;
+}
+
+
 sub tiff2pdf
 {
 	my ($input_file, $output_file, $profile) = @_;
@@ -179,7 +224,7 @@ sub tiff2pdf
 	# Now convert downsampled to pdf
 	sys(    "convert $input_file "
 		  . "-resize $img_dimensions "
-		  . "-background black "
+		  . "-background $bg_color "
 		  . "-gravity center "
 		  . "-extent $img_dimensions "
 		  . "-units PixelsPerInch "
