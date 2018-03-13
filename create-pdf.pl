@@ -120,6 +120,13 @@ for my $id (@ids)
 
 	my $limit = @file_ids < $max_page_check ? @file_ids : $max_page_check;
 
+	my $mods_file = $mets->get_mods_file;
+	$log->debug("MODS file: $mets_file");
+	my $mods = MODS->new($mods_file);
+
+	my $lang = $mods->lang_code();
+	$log->debug("Language = $lang");
+
 	if (!$opt_b)
 	{
 		my $num_white = 0;
@@ -222,19 +229,23 @@ sub tiff2pdf
 	  . $comp_cfg->{$profile}{resolution};
 
 	# Now convert downsampled to pdf
-	sys(    "convert $input_file "
-		  . "-resize $img_dimensions "
-		  . "-background $bg_color "
-		  . "-gravity center "
-		  . "-extent $img_dimensions "
-		  . "-units PixelsPerInch "
-		  . "-density $density "
-		  . "-compress JPEG "
-		  . "-quality $comp_cfg->{$profile}{jpeg_quality} "
-		  . $tmp_pdf_file);
-
+# 	sys(    "convert $input_file "
+# 		  . "-resize $img_dimensions "
+# 		  . "-background $bg_color "
+# 		  . "-gravity center "
+# 		  . "-extent $img_dimensions "
+# 		  . "-units PixelsPerInch "
+# 		  . "-density $density "
+# 		  . "-compress JPEG "
+# 		  . "-quality $comp_cfg->{$profile}{jpeg_quality} "
+# 		  . $tmp_pdf_file);
+#
 # 	sys("tiff2pdf -o $tmp_pdf_file -j -q $comp_cfg->{$profile}{jpeg_quality} -p letter $input_file");
 # 	sys("sed -i 's/ColorTransform 0/ColorTransform 1/' $tmp_pdf_file");
+
+	(my $output_base = $tmp_pdf_file) =~ s/\.pdf$//;
+	sys("tesseract $input_file $output_base -l $lang pdf");
+
 	sys("pdfinfo $tmp_pdf_file");
 
 	$log->info("Moving $tmp_pdf_file to $host:$output_file");
