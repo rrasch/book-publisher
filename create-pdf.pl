@@ -16,6 +16,7 @@ use File::Temp qw(tempdir);
 use File::Which;
 use Getopt::Std;
 use Log::Log4perl::Level;
+use MODS;
 use MyConfig;
 use MyLogger;
 use SourceEntityMETS;
@@ -65,19 +66,12 @@ $lo_level ||= 85;
 $hi_level ||= 85;
 $log->debug("Compression levels for pdfs are $lo_level and $hi_level.");
 
-my $bg_color;
-if ($opt_b)
-{
-	$log->debug("Setting background color to $bg_color.");
-	$bg_color = $opt_b;
-}
-
 my $max_page_check = 20;
 
 my $paper_width_inches = 8.5;
 my $paper_height_inches = 11;
 
-my $comp_cfg = {
+my $img_cfg = {
 	hi => {
 		resolution   => 200,
 		jpeg_quality => $hi_level,
@@ -88,14 +82,14 @@ my $comp_cfg = {
 	},
 };
 
-my @comp_profiles = sort keys %$comp_cfg;
+my @img_profiles = sort keys %$img_cfg;
 
-for my $prof (@comp_profiles)
+for my $prof (@img_profiles)
 {
-	$comp_cfg->{$prof}{img_width} =
-	  int($paper_width_inches * $comp_cfg->{$prof}{resolution});
-	$comp_cfg->{$prof}{img_height} =
-	  int($paper_height_inches * $comp_cfg->{$prof}{resolution});
+	$img_cfg->{$prof}{img_width} =
+	  int($paper_width_inches * $img_cfg->{$prof}{resolution});
+	$img_cfg->{$prof}{img_height} =
+	  int($paper_height_inches * $img_cfg->{$prof}{resolution});
 }
 
 for my $id (@ids)
@@ -118,30 +112,21 @@ for my $id (@ids)
 
 	my @file_ids = $mets->get_file_ids();
 
-	my $limit = @file_ids < $max_page_check ? @file_ids : $max_page_check;
-
 	my $mods_file = $mets->get_mods_file;
 	$log->debug("MODS file: $mets_file");
 	my $mods = MODS->new($mods_file);
 
 	my $lang = $mods->lang_code();
 	$log->debug("Language = $lang");
-
-	if (!$opt_b)
+	if (!$lang)
 	{
-		my $num_white = 0;
-		for (my $i = 0; $i < $limit; $i++)
-		{
-			my $input_file = "$aux_dir/$file_ids[$i]_s.jpg";
-			$num_white++ if is_page_white($input_file);
-		}
-		$log->debug("Found $num_white out of $limit white pages.");
-		$bg_color = $num_white > $limit / 2 ? 'white' : 'black';
-		$log->debug("Setting background color to $bg_color.");
+		$log->logdie("Can't find language in MODS file.");
 	}
 
+	my $bg_color = $opt_b;
+
 	my $files;
-	for my $profile (@comp_profiles)
+	for my $profile (@img_profiles)
 	{
 		$files->{$profile}{input} = [];
 		$files->{$profile}{output} = "$aux_dir/${id}_$profile.pdf";
@@ -152,15 +137,33 @@ for my $id (@ids)
 			next;
 		}
 
+		if (!$bg_color)
+		{
+			my $limit =
+			  @file_ids < $max_page_check ? @file_ids : $max_page_check;
+			my $num_white = 0;
+			for (my $i = 0 ; $i < $limit ; $i++)
+			{
+				my $input_file = "$aux_dir/$file_ids[$i]_s.jpg";
+				$num_white++ if is_page_white($input_file);
+			}
+			$log->debug("Found $num_white out of $limit white pages.");
+			$bg_color = $num_white > $limit / 2 ? 'white' : 'black';
+			$log->debug("Setting background color to $bg_color.");
+		}
+
 		for my $file_id (@file_ids)
 		{
 			my $input_file = "$aux_dir/${file_id}_${profile}res.tif";
 			my $output_file = "$aux_dir/${file_id}_${profile}.pdf";
-			if ($opt_f || ! -f $output_file) {
-				tiff2pdf($input_file, $output_file, $profile);
-			} else {
+			if (-f $output_file)
+			{
 				$log->warn("pdf $output_file already exists.");
 			}
+			my $img2pdf_cfg = { lang => $lang };
+			$img2pdf_cfg->{image} = $img_cfg->{$profile};
+			$img2pdf_cfg->{image}{bg_color} = $bg_color;
+			img2pdf($input_file, $output_file, $img2pdf_cfg);
 			push(@{$files->{$profile}{input}}, $output_file);
 		}
 
@@ -214,37 +217,38 @@ sub is_page_white
 }
 
 
-sub tiff2pdf
+sub img2pdf
 {
-	my ($input_file, $output_file, $profile) = @_;
+	my ($input_file, $output_file, $cfg) = @_;
 
 	my $tmp_pdf_file = "$tmpdir/" . basename($output_file);
 
-	my $img_dimensions =
-	    $comp_cfg->{$profile}{img_width} . 'x'
-	  . $comp_cfg->{$profile}{img_height};
-
-	my $density =
-	    $comp_cfg->{$profile}{resolution} . 'x'
-	  . $comp_cfg->{$profile}{resolution};
-
-	# Now convert downsampled to pdf
+# 	my $img_dimensions =
+# 	    $cfg->{image}{width} . 'x'
+# 	  . $cfg->{image}{height};
+#
+# 	my $density =
+# 	    $cfg->{image}{resolution} . 'x'
+# 	  . $cfg->{image}{resolution};
+#
+# 	# Now convert downsampled to pdf
 # 	sys(    "convert $input_file "
 # 		  . "-resize $img_dimensions "
-# 		  . "-background $bg_color "
+# 		  . "-background $img2pdf_cfg->{image}{bg_color} "
 # 		  . "-gravity center "
 # 		  . "-extent $img_dimensions "
 # 		  . "-units PixelsPerInch "
 # 		  . "-density $density "
 # 		  . "-compress JPEG "
-# 		  . "-quality $comp_cfg->{$profile}{jpeg_quality} "
+# 		  . "-quality $cfg->{image}{jpeg_quality} "
 # 		  . $tmp_pdf_file);
 #
-# 	sys("tiff2pdf -o $tmp_pdf_file -j -q $comp_cfg->{$profile}{jpeg_quality} -p letter $input_file");
+# 	sys(    "tiff2pdf -o $tmp_pdf_file -j -q "
+# 		  . "$cfg->{image}{jpeg_quality} -p letter $input_file");
 # 	sys("sed -i 's/ColorTransform 0/ColorTransform 1/' $tmp_pdf_file");
 
 	(my $output_base = $tmp_pdf_file) =~ s/\.pdf$//;
-	sys("tesseract $input_file $output_base -l $lang pdf");
+	sys("tesseract $input_file $output_base -l $cfg->{lang} pdf");
 
 	sys("pdfinfo $tmp_pdf_file");
 
