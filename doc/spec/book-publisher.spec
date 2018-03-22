@@ -24,15 +24,17 @@ BuildRequires:	git
 Requires:	ImageMagick
 Requires:	kakadu
 Requires:	libtiff
-%if 0%{?rhel}
+#if 0%{?rhel}
 Requires:	pdftk
-%endif
+#endif
 Requires:	perl-Image-ExifTool
 Requires:	perl-SOAP-Lite
 Requires:	perl-DBD-MySQL
 Requires:	php-cli
 Requires:	poppler-utils
 Requires:	tesseract
+Requires:	tesseract-osd
+Requires:	tesseract-langpack-ara
 
 %description
 %{summary}
