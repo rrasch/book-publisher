@@ -15,6 +15,7 @@ use File::Copy;
 use File::Temp qw(tempdir);
 use File::Which;
 use Getopt::Std;
+use LangCode;
 use Log::Log4perl::Level;
 use MODS;
 use MyConfig;
@@ -122,6 +123,7 @@ for my $id (@ids)
 	{
 		$log->logdie("Can't find language in MODS file.");
 	}
+	my $tess_lang = LangCode::term_code($lang) || $lang;
 
 	my $bg_color = $opt_b;
 
@@ -160,7 +162,7 @@ for my $id (@ids)
 			{
 				$log->warn("pdf $output_file already exists.");
 			}
-			my $img2pdf_cfg = { lang => $lang };
+			my $img2pdf_cfg = { lang => $tess_lang };
 			$img2pdf_cfg->{image} = $img_cfg->{$profile};
 			$img2pdf_cfg->{image}{bg_color} = $bg_color;
 			img2pdf($input_file, $output_file, $img2pdf_cfg);
