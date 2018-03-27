@@ -48,6 +48,8 @@ my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
 $ENV{TMPDIR} = $tmpdir;
 
+mk_lept_tmpdir();
+
 my $host = hostname();
 
 my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
@@ -257,5 +259,36 @@ sub img2pdf
 	$log->info("Moving $tmp_pdf_file to $host:$output_file");
 	move($tmp_pdf_file, $output_file)
 	  or $log->logdie("can't move $tmp_pdf_file to $output_file: $!");
+}
+
+
+# leptonica ignores TMPDIR environment var so we
+# have to make sure /tmp/lept is writable by everyone
+sub mk_lept_tmpdir
+{
+	my $lept_tmpdir = "/tmp/lept";
+	if (-d $lept_tmpdir)
+	{
+		if (-o _)
+		{
+			$log->debug("Changing permissions of leptonica "
+				  . "tmp directory $lept_tmpdir to 0777.");
+			chmod(0777, $lept_tmpdir)
+			  or $log->logdie("Can't chmod $lept_tmpdir: $!");
+		}
+		elsif (! -W _)
+		{
+			$log->logdie(
+				"Leptonica tmp directory $lept_tmpdir not writable.");
+		}
+	}
+	else
+	{
+		my $umask = umask(0000);
+		$log->debug("Creating leptonica tmp directory $lept_tmpdir.");
+		mkdir($lept_tmpdir, 0777)
+		  or $log->logdie("Can't mkdir $lept_tmpdir: $!");
+		umask($umask);
+	}
 }
 
