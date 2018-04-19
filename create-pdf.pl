@@ -30,11 +30,18 @@ my $log = MyLogger->get_logger();
 
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
+our $opt_g;  # generate pdf using ghostcript
+our $opt_o;  # generate pdf with ocr
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
 our $opt_b;  # background color to fill pdf pages
-getopts('fqr:t:c:b:');
+getopts('fqgor:t:c:b:');
+
+if ($opt_g && $opt_o)
+{
+	$log->logdie("You can't specifiy both -g and -o at same time.");
+}
 
 # quiet mode
 if ($opt_q)
@@ -227,33 +234,39 @@ sub img2pdf
 
 	my $tmp_pdf_file = "$tmpdir/" . basename($output_file);
 
-# 	my $img_dimensions =
-# 	    $cfg->{image}{width} . 'x'
-# 	  . $cfg->{image}{height};
-#
-# 	my $density =
-# 	    $cfg->{image}{resolution} . 'x'
-# 	  . $cfg->{image}{resolution};
-#
-# 	# Now convert downsampled to pdf
-# 	sys(    "convert $input_file "
-# 		  . "-resize $img_dimensions "
-# 		  . "-background $img2pdf_cfg->{image}{bg_color} "
-# 		  . "-gravity center "
-# 		  . "-extent $img_dimensions "
-# 		  . "-units PixelsPerInch "
-# 		  . "-density $density "
-# 		  . "-compress JPEG "
-# 		  . "-quality $cfg->{image}{jpeg_quality} "
-# 		  . $tmp_pdf_file);
-#
-# 	sys(    "tiff2pdf -o $tmp_pdf_file -j -q "
-# 		  . "$cfg->{image}{jpeg_quality} -p letter $input_file");
-# 	sys("sed -i 's/ColorTransform 0/ColorTransform 1/' $tmp_pdf_file");
+	if ($opt_g)
+	{
+		my $img_dimensions =
+		    $cfg->{image}{width} . 'x'
+		  . $cfg->{image}{height};
 
-	(my $output_base = $tmp_pdf_file) =~ s/\.pdf$//;
-	sys("tesseract $input_file $output_base -l $cfg->{lang} pdf");
+		my $density =
+		    $cfg->{image}{resolution} . 'x'
+		  . $cfg->{image}{resolution};
 
+		# Now convert downsampled to pdf
+		sys(    "convert $input_file "
+			  . "-resize $img_dimensions "
+			  . "-background $cfg->{image}{bg_color} "
+			  . "-gravity center "
+			  . "-extent $img_dimensions "
+			  . "-units PixelsPerInch "
+			  . "-density $density "
+			  . "-compress JPEG "
+			  . "-quality $cfg->{image}{jpeg_quality} "
+			  . $tmp_pdf_file);
+	}
+	elsif ($opt_o)
+	{
+		(my $output_base = $tmp_pdf_file) =~ s/\.pdf$//;
+		sys("tesseract $input_file $output_base -l $cfg->{lang} pdf");
+	}
+	else
+	{
+		sys(    "tiff2pdf -o $tmp_pdf_file -j -q "
+			  . "$cfg->{image}{jpeg_quality} $input_file");
+		sys("sed -i 's/ColorTransform 0/ColorTransform 1/' $tmp_pdf_file");
+	}
 	sys("pdfinfo $tmp_pdf_file");
 
 	$log->info("Moving $tmp_pdf_file to $host:$output_file");
