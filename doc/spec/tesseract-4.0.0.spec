@@ -1,5 +1,5 @@
 %global tessocr_version 4.0.0-beta.1
-%global tessdata_version 3.04.00
+%global tessdata_version 4.00
 
 %define icu_prefix /usr/local/icu-57.1
 
@@ -246,6 +246,7 @@ install -pm 0644 tessdata-%{tessdata_version}/* %{buildroot}/%{_datadir}/%{name}
 %{_datadir}/%{name}/tessdata/tessconfigs/
 %{_datadir}/%{name}/tessdata/eng.*
 %{_datadir}/%{name}/tessdata/pdf.ttf
+%{_datadir}/%{name}/tessdata/COPYING
 %{_libdir}/lib%{name}*.so.4*
 %{_mandir}/man1/*
 %{_mandir}/man5/*
