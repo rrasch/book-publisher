@@ -30,17 +30,17 @@ my $log = MyLogger->get_logger();
 
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
-our $opt_g;  # generate pdf using ghostcript
+our $opt_i;  # generate pdf using ImageMagick
 our $opt_o;  # generate pdf with ocr
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
 our $opt_b;  # background color to fill pdf pages
-getopts('fqgor:t:c:b:');
+getopts('fqior:t:c:b:');
 
 if ($opt_g && $opt_o)
 {
-	$log->logdie("You can't specifiy both -g and -o at same time.");
+	$log->logdie("You can't specifiy both -i and -o at same time.");
 }
 
 # quiet mode
@@ -234,7 +234,7 @@ sub img2pdf
 
 	my $tmp_pdf_file = "$tmpdir/" . basename($output_file);
 
-	if ($opt_g)
+	if ($opt_i)
 	{
 		my $img_dimensions =
 		    $cfg->{image}{width} . 'x'
