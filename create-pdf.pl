@@ -36,9 +36,16 @@ our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
 our $opt_b;  # background color to fill pdf pages
-getopts('fqior:t:c:b:');
 
-if ($opt_g && $opt_o)
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+my @args = @ARGV;
+my $success = getopts('fqior:t:c:b:');
+if (!$success)
+{
+	$log->logdie("Problem parsing command line args '@args'.");
+}
+
+if ($opt_i && $opt_o)
 {
 	$log->logdie("You can't specifiy both -i and -o at same time.");
 }
@@ -96,9 +103,9 @@ my @img_profiles = sort keys %$img_cfg;
 
 for my $prof (@img_profiles)
 {
-	$img_cfg->{$prof}{img_width} =
+	$img_cfg->{$prof}{width} =
 	  int($paper_width_inches * $img_cfg->{$prof}{resolution});
-	$img_cfg->{$prof}{img_height} =
+	$img_cfg->{$prof}{height} =
 	  int($paper_height_inches * $img_cfg->{$prof}{resolution});
 }
 
@@ -148,7 +155,7 @@ for my $id (@ids)
 			next;
 		}
 
-		if (!$bg_color)
+		if ($opt_i && !$bg_color)
 		{
 			my $limit =
 			  @file_ids < $max_page_check ? @file_ids : $max_page_check;
