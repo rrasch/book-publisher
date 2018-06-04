@@ -133,16 +133,9 @@ for my $id (@ids)
 		my $new_depth;
 		$new_depth = 8 if $orig_depth > 8;
 
-		# kdu_compress doesn't seem to hangle CIELab so we
-		# need to convert colorspace into sRGB.
-		my $colorspace;
-		$colorspace = "sRGB"
-		  if $exif_data[$i]->{PhotometricInterpretation} eq 'CIELab';
-
 		my $params = {
 			resolution => $resolution,
 			depth      => $new_depth,
-			colorspace => $colorspace,
 		};
 
 		convert($deriv_mkrs[$i], $tif_file, $params);
@@ -172,8 +165,7 @@ sub convert
 		if ($output_file =~ /d\.tif$/) {
 			$convert .= " -strip -density $params->{resolution} ";
 			$convert .= " -alpha off";
-			$convert .= " -colorspace $params->{colorspace}"
-			  if $params->{colorspace};
+			$convert .= " -colorspace sRGB -type TrueColor";
 			$convert .= " -depth $params->{depth}" if $params->{depth};
 		} elsif ($output_file =~ /\.jpg$/) {
 			$convert .= " -resize 960x720\\> -quality 75";

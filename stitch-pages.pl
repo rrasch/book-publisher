@@ -30,7 +30,7 @@ my $djatoka_dir = "/usr/local/adore-djatoka-1.1/bin";
 # Compression ratio for JPEG2000 files
 my $jp2_compression_ratio = 1 / 100;
 
-my $convert_args = "";
+my $convert_args = "-colorspace sRGB -type TrueColor";
 
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
