@@ -50,8 +50,10 @@ if ($opt_b && $opt_b !~ /^\d+$/)
 	exit 1;
 }
 
-$convert_args .= " -background black -splice ${opt_b}x0",
-$convert_args .= " +append -crop +${opt_b}+0";
+$convert_args .= " -background black";
+$convert_args .= " -splice ${opt_b}x0" if $opt_b;
+$convert_args .= " +append";
+$convert_args .= " -chop ${opt_b}x0" if $opt_b;
 
 my $log = MyLogger->get_logger();
 
