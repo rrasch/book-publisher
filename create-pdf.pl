@@ -32,22 +32,43 @@ our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
 our $opt_i;  # generate pdf using ImageMagick
 our $opt_o;  # generate pdf with ocr
+our $opt_e;  # generate pdf with ExactImage adding previously created hocr
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
 our $opt_b;  # background color to fill pdf pages
+our $opt_m;  # tesseract ocr engine mode
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
 my @args = @ARGV;
-my $success = getopts('fqior:t:c:b:');
+my $success = getopts('fqioer:t:c:b:m:');
 if (!$success)
 {
 	$log->logdie("Problem parsing command line args '@args'.");
 }
 
-if ($opt_i && $opt_o)
+
+my $num_pdf_opts = 0;
+for my $opt ($opt_i, $opt_o, $opt_e)
 {
-	$log->logdie("You can't specifiy both -i and -o at same time.");
+	$num_pdf_opts++ if $opt;
+}
+
+if ($num_pdf_opts > 1)
+{
+	$log->logdie("You can only specifiy one of -i, -o, or -e.");
+}
+
+if ($opt_m && !$opt_o)
+{
+	$log->logdie("You specified Tesseract OCR Engine (OEM) but "
+		  . "aren't using Tesseract.");
+}
+
+if ($opt_m !~ /^[0-3]$/)
+{
+	$log->logdie("Invalid Tesseract OCR Engine (OEM) value, "
+		  . "please enter a number between 0-3.");
 }
 
 # quiet mode
@@ -142,6 +163,22 @@ for my $id (@ids)
 	my $tess_lang = LangCode::term_code($lang) || $lang;
 
 	my $bg_color = $opt_b;
+
+	if ($opt_e)
+	{
+		my @files = ();
+		for my $file_id (@file_ids)
+		{
+			my $input_file  = "$aux_dir/${file_id}_d.tif";
+			my $output_file = "$aux_dir/${file_id}_hocr.pdf";
+			my $hocr_file   = "$data_dir/${file_id}_hocr.html";
+			img2pdf($input_file, $output_file, {hocr_file => $hocr_file});
+			push(@files, $output_file);
+		}
+		$log->debug("Merging pdfs");
+		merge_pdfs(\@files, "$aux_dir/${id}_hocr.pdf");
+		next;
+	}
 
 	my $files;
 	for my $profile (@img_profiles)
@@ -266,7 +303,15 @@ sub img2pdf
 	elsif ($opt_o)
 	{
 		(my $output_base = $tmp_pdf_file) =~ s/\.pdf$//;
-		sys("tesseract $input_file $output_base -l $cfg->{lang} pdf");
+		my $tess_args = "-l $cfg->{lang}";
+		$tess_args .= " --oem $opt_m" if $opt_m;
+		$tess_args .= " quiet" if $opt_q;
+		sys("tesseract $input_file $output_base $tess_args pdf");
+	}
+	elsif ($opt_e)
+	{
+		sys("hocr2pdf -i $input_file -o $tmp_pdf_file "
+			. "< $cfg->{hocr_file}");
 	}
 	else
 	{
