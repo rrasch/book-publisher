@@ -1,3 +1,5 @@
+%bcond_with langpacks
+
 %define gitver	.git.%(date +"%Y%m%d")
 %define name	book-publisher
 %define version	1.0.3
@@ -34,6 +36,7 @@ Requires:	php-cli
 Requires:	poppler-utils
 Requires:	tesseract
 Requires:	tesseract-osd
+%if %{with langpacks}
 Requires:	tesseract-langpack-afr
 Requires:	tesseract-langpack-amh
 Requires:	tesseract-langpack-ara
@@ -139,6 +142,7 @@ Requires:	tesseract-langpack-uzb
 Requires:	tesseract-langpack-uzb_cyrl
 Requires:	tesseract-langpack-vie
 Requires:	tesseract-langpack-yid
+%endif
 
 %description
 %{summary}
