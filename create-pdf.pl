@@ -92,6 +92,12 @@ my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 
+if ($ENV{TQ_SERVER_PID})
+{
+	$ENV{MAGICK_THREAD_LIMIT} = 1;
+	$ENV{OMP_THREAD_LIMIT} = 1;
+}
+
 my $tess_vers;
 my $tess_args = "";
 if ($opt_o)
