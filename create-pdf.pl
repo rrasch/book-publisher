@@ -66,7 +66,7 @@ if ($opt_m && !$opt_o)
 		  . "aren't using Tesseract.");
 }
 
-if ($opt_m !~ /^[0-3]$/)
+if (defined($opt_m) && $opt_m !~ /^[0-3]$/)
 {
 	$log->logdie("Invalid Tesseract OCR Engine (OEM) value, "
 		  . "please enter a number between 0-3.");
