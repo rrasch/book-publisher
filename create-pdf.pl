@@ -23,6 +23,7 @@ use MyLogger;
 use SourceEntityMETS;
 use Sys::Hostname;
 use Util;
+use version;
 
 $SIG{HUP} = 'IGNORE';
 
@@ -90,6 +91,20 @@ my $host = hostname();
 my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
+
+my $tess_vers;
+my $tess_args = "";
+if ($opt_o)
+{
+	my ($tess_vers) =
+	  sys("tesseract -v") =~ /^tesseract (\d+\.\d+.\d+)/;
+	$log->debug("Tesseract version: $tess_vers");
+	$tess_args .= " -c tessedit_do_invert=0"
+	  if version->parse($tess_vers) >= version("4.1.1");
+	$tess_args .= " --oem $opt_m" if $opt_m;
+	$tess_args .= " quiet" if $opt_q;
+	$tess_args =~ s/^\s+//;
+}
 
 # get jpeg compression values
 my ($lo_level, $hi_level);
@@ -303,10 +318,8 @@ sub img2pdf
 	elsif ($opt_o)
 	{
 		(my $output_base = $tmp_pdf_file) =~ s/\.pdf$//;
-		my $tess_args = "-l $cfg->{lang}";
-		$tess_args .= " --oem $opt_m" if $opt_m;
-		$tess_args .= " quiet" if $opt_q;
-		sys("tesseract $input_file $output_base $tess_args pdf");
+		my $opts = "-l $cfg->{lang} $tess_args";
+		sys("tesseract $input_file $output_base $opts pdf");
 	}
 	elsif ($opt_e)
 	{
