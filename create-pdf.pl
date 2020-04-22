@@ -258,10 +258,10 @@ sub merge_pdfs
 			. join(" ", @{$input_files})
 			. " cat output $tmp_file");
 	} else {
-		my @libs = qw(pdfbox commons-logging);
+		my @libs = qw(pdfbox pdfbox-tools commons-logging);
 		sys("java -Xms512m -Xmx512m -cp "
 			. join(':', map("/usr/share/java/${_}.jar", @libs))
-			. " org.apache.pdfbox.PDFMerger "
+			. " org.apache.pdfbox.tools.PDFMerger "
 			. join(" ", @{$input_files}, $tmp_file));
 	}
 	$log->info("Moving $tmp_file to $host:$output_file");
