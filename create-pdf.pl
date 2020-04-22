@@ -106,7 +106,7 @@ if ($opt_o)
 	  sys("tesseract -v") =~ /^tesseract (\d+\.\d+.\d+)/;
 	$log->debug("Tesseract version: $tess_vers");
 	$tess_args .= " -c tessedit_do_invert=0"
-	  if version->parse($tess_vers) >= version("4.1.1");
+	  if version->parse($tess_vers) >= version->parse("4.1.1");
 	$tess_args .= " --oem $opt_m" if $opt_m;
 	$tess_args .= " quiet" if $opt_q;
 	$tess_args =~ s/^\s+//;
