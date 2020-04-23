@@ -2,7 +2,7 @@
 
 %define gitver	.git.%(date +"%Y%m%d")
 %define name	book-publisher
-%define version	1.0.3
+%define version	1.0.4
 %define release	1.dlts%{?gitver}%{?dist}
 %define dlibdir	/usr/local/dlib/%{name}
 %define liburl	https://github.com/rrasch/libpublishing
@@ -21,14 +21,20 @@ Group:		Applications/Publishing
 URL:		https://github.com/rrasch/%{name}
 BuildRoot:	%{_tmppath}/%{name}-root
 BuildArch:	noarch
-BuildRequires:	perl
+BuildRequires:	/usr/bin/perl
+%if 0%{?fedora} >= 31
+BuildRequires:	perl-generators
+BuildRequires:	perl-macros
+%endif
 BuildRequires:	git
 Requires:	ImageMagick
 Requires:	kakadu
 Requires:	libtiff
-#if 0%{?rhel}
+%if 0%{?rhel}
 Requires:	pdftk
-#endif
+%else
+Requires:	pdfbox-tools
+%endif
 Requires:	perl-Image-ExifTool
 Requires:	perl-SOAP-Lite
 Requires:	perl-DBD-MySQL
