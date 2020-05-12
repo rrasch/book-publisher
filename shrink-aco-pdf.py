@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import glob
 import os
@@ -29,9 +29,13 @@ if input_file == output_file:
     print("Input file can't be the same as output file.")
     exit(1)
 
-# tmpdir = tempfile.TemporaryDirectory()
+tmp_rootdir = "/content/prod/rstar/tmp/aco"
+if not os.path.isdir(tmp_rootdir):
+    tmp_rootdir = "/tmp"
+
+# tmpdir = tempfile.TemporaryDirectory(dir=tmp_rootdir)
 # print(tmpdir.name)
-tmpdir = tempfile.mkdtemp()
+tmpdir = tempfile.mkdtemp(dir=tmp_rootdir)
 print(tmpdir)
 
 do_cmd(['qpdf', '--split-pages', input_file, '{}/%d.pdf'.format(tmpdir)])
@@ -45,7 +49,7 @@ for pdf_file in sorted(glob.glob(f"{tmpdir}/*.pdf")):
     do_cmd(['pdfimages', '-all', pdf_file, basename])
     do_cmd(['convert', old_jpg_file, '-quality', '10', new_jpg_file])
     os.remove(old_jpg_file)
-    do_cmd(['pdf2djvu', '-o', djvu_file, pdf_file])
+    do_cmd(['pdf2djvu', '-q', '-o', djvu_file, pdf_file])
     with open(hocr_file, 'w') as f:
         do_cmd(['djvu2hocr', djvu_file], stdout=f)
 
