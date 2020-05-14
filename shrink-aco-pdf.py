@@ -91,8 +91,8 @@ for pdf_file in sorted(glob.glob(f"{tmpdir}/*.pdf")):
     with open(hocr_file, 'w') as f:
         do_cmd(['djvu2hocr', djvu_file], stdout=f)
 
-# reassemble pdf by taking combining directory now filled
-# with reduced images and extracted hocr file
+# reassemble pdf by combining reduced images
+# and extracted hocr files
 do_cmd(['hocr-pdf', '--scale-hocr', '0.24',
     '--savefile', args.output_file, tmpdir])
 
