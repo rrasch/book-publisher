@@ -93,7 +93,7 @@ for pdf_file in sorted(glob.glob(f"{tmpdir}/*.pdf")):
 
 # reassemble pdf by taking combining directory now filled
 # with reduced images and extracted hocr file
-do_cmd(['hocr-pdf', '--scale-ocr', '0.24',
+do_cmd(['hocr-pdf', '--scale-hocr', '0.24',
     '--savefile', args.output_file, tmpdir])
 
 shutil.rmtree(tmpdir)
