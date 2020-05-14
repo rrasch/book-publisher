@@ -76,7 +76,10 @@ for pdf_file in sorted(glob.glob(f"{tmpdir}/*.pdf")):
     do_cmd(['pdfimages', '-all', pdf_file, basename])
 
     # shrink image size by reducing quality
-    do_cmd(['convert', old_jpg_file, '-quality', '10', new_jpg_file])
+    #do_cmd(['convert', old_jpg_file, '-quality', '10', new_jpg_file])
+    do_cmd(['convert', '-density', '300', old_jpg_file,
+        '-resample', '72', '-density', '72',
+        '-units', 'PixelsPerInch', new_jpg_file])
 
     # delete the larger original image
     os.remove(old_jpg_file)
@@ -90,7 +93,8 @@ for pdf_file in sorted(glob.glob(f"{tmpdir}/*.pdf")):
 
 # reassemble pdf by taking combining directory now filled
 # with reduced images and extracted hocr file
-do_cmd(['hocr-pdf', '--savefile', args.output_file, tmpdir])
+do_cmd(['hocr-pdf', '--scale-ocr', '0.24',
+    '--savefile', args.output_file, tmpdir])
 
 shutil.rmtree(tmpdir)
 
