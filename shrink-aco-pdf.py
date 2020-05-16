@@ -40,6 +40,7 @@ parser.add_argument("output_file", metavar="OUTPUT_FILE",
 parser.add_argument("-d", "---debug",
     help="Enable debugging messages", action="store_true")
 parser.add_argument("-m", "--max-pages", type=int,
+    default=-1,
     help="Maximum number of pages to process")
 parser.add_argument("--dpi",  type=int,
     default=72, choices=[72, 96, 200],
