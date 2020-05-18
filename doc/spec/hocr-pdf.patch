@@ -1,6 +1,15 @@
 diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
 --- hocr-tools-1.3.0.orig/hocr-pdf	2019-03-02 10:33:48.000000000 -0500
-+++ hocr-tools-1.3.0/hocr-pdf	2020-05-16 01:20:06.649070213 -0400
++++ hocr-tools-1.3.0/hocr-pdf	2020-05-18 19:50:32.425443982 -0400
+@@ -31,7 +31,7 @@
+ from reportlab.pdfbase.ttfonts import TTFont
+ from reportlab.pdfgen.canvas import Canvas
+ 
+-from lxml import etree, html
++from lxml import html
+ from PIL import Image
+ 
+ 
 @@ -48,9 +48,10 @@
          sys.stdout.write(data)
  
@@ -32,8 +41,9 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
 +    p1 = re.compile(r'bbox((\s+-?\d+){4})')
      p2 = re.compile(r'baseline((\s+[\d\.\-]+){2})')
      hocrfile = os.path.splitext(image)[0] + ".hocr"
-     hocr = etree.parse(hocrfile, html.XHTMLParser())
+-    hocr = etree.parse(hocrfile, html.XHTMLParser())
 -    for line in hocr.xpath('//*[@class="ocr_line"]'):
++    hocr = html.parse(hocrfile)
 +    for line in hocr.xpath('//*[@class="ocr_line" or @class="ocrx_line"]'):
          linebox = p1.search(line.attrib['title']).group(1).split()
          try:
