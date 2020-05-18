@@ -39,6 +39,8 @@ parser.add_argument("output_file", metavar="OUTPUT_FILE",
     help="Output PDF file")
 parser.add_argument("-d", "---debug",
     help="Enable debugging messages", action="store_true")
+parser.add_argument("--use-existing-hocr", action="store_true",
+    help="Use existing hOCR files from input directory")
 parser.add_argument("-m", "--max-pages", type=int,
     default=-1,
     help="Maximum number of pages to process")
@@ -58,9 +60,14 @@ if args.input_file == args.output_file:
         file=sys.stderr)
     exit(1)
 
+input_dir, input_file = os.path.split(args.input_file)
+logging.debug("input dir: %s", input_dir)
+
+hocr_files = sorted(glob.glob(f"{input_dir}/*_hocr.html"))
+
 rstar_dir = "/content/prod/rstar"
 
-objid = os.path.splitext(os.path.basename(args.input_file))[0]
+objid = os.path.splitext(input_file)[0]
 match = re.search(r'^([a-z]+)_aco\d{6}$', objid)
 if match:
     partner_id = match.group(1)
@@ -104,14 +111,24 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
         '-units', 'PixelsPerInch', new_jpg_file])
 
     # delete the larger original image
+    logging.debug("Removing %s", old_jpg_file)
     os.remove(old_jpg_file)
 
-    # convert pdf page to djvu file
-    do_cmd(['pdf2djvu', '-q', '-o', djvu_file, pdf_file])
+    if args.use_existing_hocr:
+        # hocr files seem to shifted by 1
+        if i == len(hocr_files) - 1:
+            j = 0
+        else:
+            j = i + 1
+        logging.debug("Copying %s to %s", hocr_files[j], hocr_file)
+        shutil.copyfile(hocr_files[j], hocr_file)
+    else:
+        # convert pdf page to djvu file
+        do_cmd(['pdf2djvu', '-q', '-o', djvu_file, pdf_file])
 
-    # extract hidden text from djvu file as hocr
-    with open(hocr_file, 'w') as f:
-        do_cmd(['djvu2hocr', djvu_file], stdout=f)
+        # extract hidden text from djvu file as hocr
+        with open(hocr_file, 'w') as f:
+            do_cmd(['djvu2hocr', djvu_file], stdout=f)
 
     # generating hocr is time consuming so we copy file
     # to aux directory for later use
@@ -121,8 +138,11 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 
 # reassemble pdf by combining reduced images
 # and extracted hocr files
+tmp_pdf_file = f"{tmpdir}/tmp.pdf"
 do_cmd(['hocr-pdf', '--scale-hocr', args.dpi / 300,
-    '--savefile', args.output_file, tmpdir])
+    '--savefile', tmp_pdf_file, tmpdir])
+do_cmd(['exiftool', '-q', '-m', '-all:all=', tmp_pdf_file])
+do_cmd(['qpdf', '--linearize', tmp_pdf_file, args.output_file])
 
 shutil.rmtree(tmpdir)
 
