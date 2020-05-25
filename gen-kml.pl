@@ -57,6 +57,8 @@ if (@wip_dirs > 1 && @wip_ids)
 	$log->logdie("Can't set wip ids if specifying multiple rstar dirs.");
 }
 
+my $api_key = config('gmaps_api_key');
+
 my $xml = XML::LibXML::Document->new("1.0", "UTF-8");
 
 my $kml = $xml->createElement("kml");
@@ -219,7 +221,10 @@ for my $wip_dir (@wip_dirs)
             '<div>Date: $date</div>'+
             '<div>Language: $lang</div>'+
             '<div>Call Number: $call_num</div>'+
-            '<a href="http://hdl.handle.net/$handle">Handle</a>'+
+            '<div>Handle: '+
+            '<a target="_blank" rel="noopener noreferrer" '+
+            'href="http://hdl.handle.net/$handle">$handle</a>'+
+            '</div>'+
             '</div>'+
             '</div>';
 
@@ -238,7 +243,7 @@ for my $wip_dir (@wip_dirs)
       }
     </script>
     <script async defer
-    src="https://maps.googleapis.com/maps/api/js?callback=initMap">
+    src="https://maps.googleapis.com/maps/api/js?callback=initMap&key=$api_key">
     </script>
   </body>
 </html>
