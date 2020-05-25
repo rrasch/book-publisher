@@ -30,7 +30,7 @@ parser = argparse.ArgumentParser(
     description="Get geographic coordinates from MODS subject")
 parser.add_argument("mods_file", metavar="MODS_FILE",
     help="Input MODS file")
-parser.add_argument("coord_file", metavar="COORD_FILE",
+parser.add_argument("coord_file", metavar="COORD_FILE", nargs="?",
     help="Ouptput JSON coordinates file")
 parser.add_argument("-d", "--debug",
     help="Enable debugging messages", action="store_true")
@@ -70,6 +70,9 @@ coord = {
 
 logging.debug("Coordinates %s", coord)
 
-with open(args.coord_file, "w") as outfile:
-    json.dump(coord, outfile, indent=None)
+if not args.coord_file or args.coord_file == "-":
+    print(json.dumps(coord, indent=2))
+else:
+    with open(args.coord_file, "w") as outfile:
+        json.dump(coord, outfile, indent=2)
 
