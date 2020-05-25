@@ -9,7 +9,9 @@ use lib "$FindBin::Bin/lib";
 use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
+use Cwd qw(abs_path getcwd);
 use Data::Dumper;
+use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
 use Getopt::Std;
@@ -37,6 +39,8 @@ if ($opt_q)
 	MyLogger->get_logger('Util')->level($WARN);
 	$log->level($WARN)
 }
+
+my $app_home = dirname(abs_path($0));
 
 my $tmpdir_base = $opt_t || config('tmpdir') || "/tmp";
 my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
@@ -114,29 +118,30 @@ for my $wip_dir (@wip_dirs)
 		my $out;
 		if (-f $coord_file)
 		{
-			local $/ = undef;
-			open(my $in, "<$coord_file")
-			  or $log->logdie("can't open $coord_file: $!");
-			$coord = from_json(<$in>);
-			close($in);
+			$coord = read_coords_from_file($coord_file);
 		}
 		else
 		{
-			my $coord_list = $mods->geo_coordinates();
-			if (!$coord_list)
-			{
-				$log->warn("Can't find coordinates for $id");
-				next;
-			}
-			$log->debug(Dumper($coord_list));
-			$coord = $coord_list->[0];
-			my $json = to_json($coord, {utf8 => 1, pretty => 1});
-			open($out, ">$tmp_file")
-			  or $log->logdie("can't open $tmp_file: $!");
-			print $out $json;
-			close($out);
-			move($tmp_file, $coord_file)
-			  or $log->logdie("can't move $tmp_file to $coord_file: $!");
+# 			my $coord_list = $mods->geo_coordinates();
+# 			if (!$coord_list)
+# 			{
+# 				$log->warn("Can't find coordinates for $id");
+# 				next;
+# 			}
+# 			$log->debug(Dumper($coord_list));
+# 			$coord = $coord_list->[0];
+# 			my $json = to_json($coord, {utf8 => 1, pretty => 1});
+# 			open($out, ">$tmp_file")
+# 			  or $log->logdie("can't open $tmp_file: $!");
+# 			print $out $json;
+# 			close($out);
+# 			move($tmp_file, $coord_file)
+# 			  or $log->logdie("can't move $tmp_file to $coord_file: $!");
+			my $geo_cmd = "$app_home/geo-coords.py";
+			$geo_cmd .= " --debug" unless $opt_q;
+			$geo_cmd .= " $mods_file $coord_file";
+			my $output = Util::sys($geo_cmd);
+			$coord = read_coords_from_file($coord_file);
 		}
 
 		$num_placemarks++;
@@ -269,6 +274,7 @@ EOF
 # EOF
 
 		my $desc_html = <<EOF;
+
         <div>$desc_str</div>
         <div>
           <table>
@@ -320,5 +326,17 @@ $xml->setDocumentElement($kml);
 if ($num_placemarks)
 {
 	print $xml->toString(1);
+}
+
+
+sub read_coords_from_file
+{
+	my $coord_file = shift;
+	local $/ = undef;
+	open(my $in, "<$coord_file")
+	  or $log->logdie("can't open $coord_file: $!");
+	my $coord = from_json(<$in>);
+	close($in);
+	return $coord;
 }
 
