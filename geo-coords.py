@@ -24,6 +24,7 @@ import argparse
 import importlib
 import json
 import logging
+import sys
 
 
 parser = argparse.ArgumentParser(
@@ -50,8 +51,9 @@ geo_subj = mods.xpath(xpath, namespaces=nsmap)
 if geo_subj:
     loc_name = geo_subj[0].text
 else:
-    print("No geographic subject found.", file=sys.stderr)
-    exit()
+    print("No geographic subject found in MODS.",
+        file=sys.stderr)
+    exit(1)
 
 logging.debug("Location: %s", loc_name)
 
@@ -61,6 +63,12 @@ logging.debug("geocoder class: %s", geocoder_class)
 ua_name = "dlts_geo_app/0.1"
 geolocator = geocoder_class(user_agent=ua_name)
 location = geolocator.geocode(loc_name)
+
+if not location:
+    print((f"Couldn't find coordinates for {loc_name} "
+           f"using {args.geocoder.capitalize()} Maps API"),
+        file=sys.stderr)
+    exit(1)
 
 coord = {
     "location":  loc_name,
