@@ -118,12 +118,12 @@ for my $wip_dir (@wip_dirs)
 		$log->debug("Coordinates file: $coord_file");
 		my $coord;
 		my $out;
-		if (-f $coord_file)
-		{
-			$coord = read_coords_from_file($coord_file);
-		}
-		else
-		{
+# 		if (-f $coord_file)
+# 		{
+# 			$coord = read_coords_from_file($coord_file);
+# 		}
+# 		else
+# 		{
 # 			my $coord_list = $mods->geo_coordinates();
 # 			if (!$coord_list)
 # 			{
@@ -139,12 +139,23 @@ for my $wip_dir (@wip_dirs)
 # 			close($out);
 # 			move($tmp_file, $coord_file)
 # 			  or $log->logdie("can't move $tmp_file to $coord_file: $!");
+# 		}
+
+		if (! -f $coord_file)
+		{
 			my $geo_cmd = "$app_home/geo-coords.py";
-			$geo_cmd .= " --debug" unless $opt_q;
+# 			$geo_cmd .= " --debug" unless $opt_q;
 			$geo_cmd .= " $mods_file $coord_file";
-			my $output = Util::sys($geo_cmd);
-			$coord = read_coords_from_file($coord_file);
+			my $output = sys($geo_cmd, {warnErrors => 1});
 		}
+
+		if (! -f $coord_file)
+		{
+			$log->debug("Couldn't find coordinates. Skipping ...");
+			next;
+		}
+
+		$coord = read_coords_from_file($coord_file);
 
 		$num_placemarks++;
 
