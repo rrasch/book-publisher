@@ -4,7 +4,8 @@
 #
 # Requires the following tools:
 # ImageMagick, poppler, pdf2djvu, ocrodjvu, and hocr-tools
-
+#
+# rasan@nyu.edu
 
 import argparse
 import glob
@@ -25,6 +26,7 @@ def do_cmd(cmdlist, **kwargs):
     except Exception as e:
         logging.exception(e)
         exit(1)
+    return process
 
 
 logging.basicConfig(
@@ -39,6 +41,8 @@ parser.add_argument("output_file", metavar="OUTPUT_FILE",
     help="Output PDF file")
 parser.add_argument("-d", "--debug",
     help="Enable debugging messages", action="store_true")
+parser.add_argument("-f", "--force",
+    help="Force overwrite of output file", action="store_true")
 parser.add_argument("--use-existing-hocr", action="store_true",
     help="Use existing hOCR files from input directory")
 parser.add_argument("-m", "--max-pages", type=int,
@@ -58,6 +62,10 @@ logging.debug("Output file: %s", args.output_file)
 if args.input_file == args.output_file:
     print("Input file can't be the same as output file.",
         file=sys.stderr)
+    exit(1)
+
+if not args.force and os.path.exists(args.output_file):
+    print("Output file already exists.", file=sys.stderr)
     exit(1)
 
 input_dir, input_file = os.path.split(args.input_file)
@@ -128,7 +136,9 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 
         # extract hidden text from djvu file as hocr
         with open(hocr_file, 'w') as f:
-            do_cmd(['djvu2hocr', djvu_file], stdout=f)
+            ret = do_cmd(['djvu2hocr', djvu_file],
+                stdout=f, stderr=subprocess.PIPE)
+            logging.debug(ret.stderr.decode().strip())
 
     # generating hocr is time consuming so we copy file
     # to aux directory for later use
