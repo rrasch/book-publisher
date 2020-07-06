@@ -45,6 +45,26 @@ def get_img_info(pdf_file):
     return { 'ext': ext.get(codec), 'dpi': dpi }
 
 
+# Check for required tools
+tools = [
+    'convert',
+    'djvu2hocr',
+    'exiftool',
+    'hocr-pdf',
+    'pdf2djvu',
+    'pdfimages',
+    'qpdf'
+]
+
+missing = 0
+for prog in tools:
+    path = shutil.which(prog)
+    if path is None:
+        print(f"{prog} not in PATH", file=sys.stderr)
+        missing += 1
+if missing > 0:
+    exit(1)
+
 logging.basicConfig(
     format='%(asctime)s - shrink-aco-pdf - %(levelname)s - %(message)s',
     datefmt='%m/%d/%Y %I:%M:%S %p')
