@@ -8,8 +8,10 @@
 # rasan@nyu.edu
 
 import argparse
+import functools
 import glob
 import logging
+import math
 import os
 import re
 import shutil
@@ -17,6 +19,8 @@ import subprocess
 import sys
 import tempfile
 
+
+print = functools.partial(print, flush=True)
 
 def do_cmd(cmdlist, **kwargs):
     cmd = list(map(str, cmdlist))
@@ -27,6 +31,18 @@ def do_cmd(cmdlist, **kwargs):
         logging.exception(e)
         exit(1)
     return process
+
+def round_down_to_even(num):
+    return math.floor(float(num) / 2.) * 2
+
+def get_img_info(pdf_file):
+    ret = do_cmd(['pdfimages', '-l', 1, '-list', pdf_file],
+        stdout=subprocess.PIPE, universal_newlines=True)
+    imgdata = ret.stdout.splitlines()[2].split()
+    ext = { 'jpeg': 'jpg', 'jpx': 'jp2' }
+    codec = imgdata[8]
+    dpi = round_down_to_even(imgdata[12])
+    return { 'ext': ext.get(codec), 'dpi': dpi }
 
 
 logging.basicConfig(
@@ -103,24 +119,42 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
     if args.max_pages > 0 and i == args.max_pages:
         break
 
+    imginfo = get_img_info(pdf_file)
+    logging.debug("imginfo: %s", imginfo)
+    if imginfo['ext'] is None:
+        img_ext = 'png'
+        pdfimgs_arg = '-png'
+    else:
+        img_ext = imginfo['ext']
+        pdfimgs_arg = '-all'
+
+    if i == 0:
+        scale_hocr = args.dpi / imginfo['dpi']
+        logging.debug("Setting scale for hocr to %s", scale_hocr)
+
     # set up file paths
     basename     = os.path.splitext(pdf_file)[0]
+    pdfimgs_dir  = os.path.join(tmpdir, "pdfimgs_%03d" % (i + 1))
+    pdfimgs_base = os.path.join(pdfimgs_dir, os.path.basename(basename))
     djvu_file    = basename + ".djvu"
     hocr_file    = basename + ".hocr"
-    old_jpg_file = basename + "-000.jpg"
     new_jpg_file = basename + ".jpg"
+    old_img_file = pdfimgs_base + "-000." + img_ext
+
+    logging.debug("Creating directory %s", pdfimgs_dir)
+    os.mkdir(pdfimgs_dir)
 
     # extract jpg image from pdf page
-    do_cmd(['pdfimages', '-all', pdf_file, basename])
+    do_cmd(['pdfimages', pdfimgs_arg, pdf_file, pdfimgs_base])
 
     # shrink image size by reducing quality
-    do_cmd(['convert', '-density', '300', old_jpg_file,
+    do_cmd(['convert', '-density', imginfo['dpi'], old_img_file,
         '-resample', args.dpi, '-density', args.dpi,
         '-units', 'PixelsPerInch', new_jpg_file])
 
-    # delete the larger original image
-    logging.debug("Removing %s", old_jpg_file)
-    os.remove(old_jpg_file)
+#   # delete images extracted from pdfimages
+#   logging.debug("Removing directory %s", pdfimgs_dir)
+#   shutil.rmtree(pdfimgs_dir)
 
     if args.use_existing_hocr:
         # hocr files seem to shifted by 1
@@ -149,10 +183,11 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 # reassemble pdf by combining reduced images
 # and extracted hocr files
 tmp_pdf_file = f"{tmpdir}/tmp.pdf"
-do_cmd(['hocr-pdf', '--scale-hocr', args.dpi / 300,
+do_cmd(['hocr-pdf', '--scale-hocr', scale_hocr,
     '--savefile', tmp_pdf_file, tmpdir])
 do_cmd(['exiftool', '-q', '-m', '-all:all=', tmp_pdf_file])
 do_cmd(['qpdf', '--linearize', tmp_pdf_file, args.output_file])
 
+logging.debug("Removing directory %s", tmpdir)
 shutil.rmtree(tmpdir)
 
