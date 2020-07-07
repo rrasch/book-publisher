@@ -13,11 +13,13 @@ import glob
 import logging
 import math
 import os
+import PIL.Image
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 
 print = functools.partial(print, flush=True)
@@ -111,6 +113,7 @@ hocr_files = sorted(glob.glob(f"{input_dir}/*_hocr.html"))
 
 rstar_dir = "/content/prod/rstar"
 
+aux_exists = False
 objid = os.path.splitext(input_file)[0]
 match = re.search(r'^([a-z]+)_aco\d{6}$', objid)
 if match:
@@ -168,9 +171,18 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
     do_cmd(['pdfimages', pdfimgs_arg, pdf_file, pdfimgs_base])
 
     # shrink image size by reducing quality
-    do_cmd(['convert', '-density', imginfo['dpi'], old_img_file,
+    do_cmd(['convert', '-density', imginfo['dpi'],
+        '-units', 'PixelsPerInch', old_img_file,
         '-resample', args.dpi, '-density', args.dpi,
         '-units', 'PixelsPerInch', new_jpg_file])
+
+    with PIL.Image.open(new_jpg_file) as new_jpg:
+        new_jpg_dpi = new_jpg.info['dpi'][0]
+    logging.debug("dpi %s: %s", new_jpg_file, new_jpg_dpi)
+    if new_jpg_dpi != args.dpi:
+        logging.error("Expected dpi %s for %s, found %s instead",
+            args.dpi, new_jpg_file, new_jpg_dpi)
+        exit(1)
 
 #   # delete images extracted from pdfimages
 #   logging.debug("Removing directory %s", pdfimgs_dir)
@@ -196,9 +208,10 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 
     # generating hocr is time consuming so we copy file
     # to aux directory for later use
-    dest_file = aux_dir + "/" + os.path.basename(hocr_file)
-    if aux_exists and not os.path.isfile(dest_file):
-        shutil.copyfile(hocr_file, dest_file)
+    if aux_exists:
+        dest_file = aux_dir + "/" + os.path.basename(hocr_file)
+        if not os.path.isfile(dest_file):
+            shutil.copyfile(hocr_file, dest_file)
 
 # reassemble pdf by combining reduced images
 # and extracted hocr files
