@@ -40,11 +40,23 @@ def round_down_to_even(num):
 def get_img_info(pdf_file):
     ret = do_cmd(['pdfimages', '-l', 1, '-list', pdf_file],
         stdout=subprocess.PIPE, universal_newlines=True)
-    imgdata = ret.stdout.splitlines()[2].split()
+    output = ret.stdout.splitlines()
+    imgdata = output[2].split()
     ext = { 'jpeg': 'jpg', 'jpx': 'jp2' }
     codec = imgdata[8]
     dpi = round_down_to_even(imgdata[12])
-    return { 'ext': ext.get(codec), 'dpi': dpi }
+    mask = False
+    for line in output[2:]:
+        logging.debug(line)
+        imgdata = line.split()
+        if imgdata[2] == 'mask':
+            mask = True
+            break
+    return { 'ext': ext.get(codec), 'dpi': dpi, 'mask': mask }
+
+def mv(src, dst):
+    logging.debug("Moving %s to %s", src, dst)
+    shutil.move(src, dst)
 
 
 # Check for required tools
@@ -144,7 +156,7 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 
     imginfo = get_img_info(pdf_file)
     logging.debug("imginfo: %s", imginfo)
-    if imginfo['ext'] is None:
+    if imginfo['ext'] is None or imginfo['mask']:
         img_ext = 'png'
         pdfimgs_arg = '-png'
     else:
@@ -153,6 +165,8 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 
     if i == 0:
         scale_hocr = args.dpi / imginfo['dpi']
+        if imginfo['mask']:
+            scale_hocr *= (4/3) * (1/2)
         logging.debug("Setting scale for hocr to %s", scale_hocr)
 
     # set up file paths
@@ -170,12 +184,34 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
     # extract jpg image from pdf page
     do_cmd(['pdfimages', pdfimgs_arg, pdf_file, pdfimgs_base])
 
+    if imginfo['mask']:
+        bot_layer = old_img_file
+        masked    = pdfimgs_base + "-001."    + img_ext
+        old_mask  = pdfimgs_base + "-002."    + img_ext
+        new_mask  = pdfimgs_base + "-mask."   + img_ext
+        top_layer = pdfimgs_base + "-top."    + img_ext
+        merged    = pdfimgs_base + "-merged." + img_ext
+        # mask image is twice as large as other images so we
+        # must resize it to match them before applying it
+        do_cmd(['convert', old_mask, '-resize', '50%', new_mask])
+        # apply mask to second image to form top/text layer
+        do_cmd(['convert', masked, new_mask, '-alpha', 'Off',
+            '-compose', 'CopyOpacity', '-composite', top_layer])
+        # merge top/text layer with bottom layer to create
+        # final combined image
+        do_cmd(['convert', bot_layer, top_layer, '-composite', merged])
+        # move merged image so that it can shrunk by
+        # imagemagick in step below
+        mv(old_img_file, old_img_file + ".bak")
+        mv(merged, old_img_file)
+
     # shrink image size by reducing quality
     do_cmd(['convert', '-density', imginfo['dpi'],
         '-units', 'PixelsPerInch', old_img_file,
         '-resample', args.dpi, '-density', args.dpi,
         '-units', 'PixelsPerInch', new_jpg_file])
 
+    # Check that shrunken image has correct resolution
     with PIL.Image.open(new_jpg_file) as new_jpg:
         new_jpg_dpi = new_jpg.info['dpi'][0]
     logging.debug("dpi %s: %s", new_jpg_file, new_jpg_dpi)
