@@ -13,15 +13,19 @@ if len(sys.argv) < 3:
         file=sys.stderr)
     exit(1)
 
+nsmap = {"k": "http://www.opengis.net/kml/2.2"}
+
+ET.register_namespace('', nsmap["k"])
+
 first = {}
 
 for filename in sys.argv[1:]:
     kml = ET.parse(filename).getroot()
     if not first:
         first['root'] = kml
-        first['doc_node'] = kml.find("./Document")
+        first['doc_node'] = kml.find("./k:Document", nsmap)
     else:
-        placemarks = kml.findall("./Document/Placemark")
+        placemarks = kml.findall("./k:Document/k:Placemark", nsmap)
         first['doc_node'].extend(placemarks)
 
 print(ET.tostring(first['root'], encoding="unicode"))
