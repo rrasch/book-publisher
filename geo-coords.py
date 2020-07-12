@@ -24,6 +24,7 @@ import argparse
 import importlib
 import json
 import logging
+import os
 import sys
 
 
@@ -42,6 +43,17 @@ args = parser.parse_args()
 if args.debug:
     logging.getLogger().setLevel(logging.DEBUG)
 
+geocoder_args = { "user_agent": "dlts_geo_app/0.1" }
+
+api_key = os.environ.get('MAPS_API_KEY')
+
+if args.geocoder == "google":
+    if api_key:
+        geocoder_args['api_key'] = api_key
+    else:
+        print("Must set envar MAPS_API_KEY for %s" % args.geocoder,
+            file=sys.stderr)
+        exit(1)
 
 nsmap = {"m": "http://www.loc.gov/mods/v3"}
 xpath = "//m:subject[@authority='lcsh']/m:geographic"
@@ -61,7 +73,7 @@ geocoder_class = get_geocoder_for_service(args.geocoder)
 logging.debug("geocoder class: %s", geocoder_class)
 
 ua_name = "dlts_geo_app/0.1"
-geolocator = geocoder_class(user_agent=ua_name)
+geolocator = geocoder_class(**geocoder_args)
 location = geolocator.geocode(loc_name)
 
 if not location:
