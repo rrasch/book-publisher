@@ -15,7 +15,7 @@ args = parser.parse_args()
 
 cinfo = countryinfo.CountryInfo(args.country)
 try:
-    print(convert_sqmiles(cinfo.area()))
+    print(round(convert_sqmiles(cinfo.area())))
 except KeyError:
     exit(1)
 
