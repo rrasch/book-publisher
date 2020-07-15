@@ -9,6 +9,7 @@ use lib "$FindBin::Bin/lib";
 use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
+use warnings FATAL => qw[uninitialized];
 use Cwd qw(abs_path getcwd);
 use Data::Dumper;
 use File::Basename;
@@ -25,17 +26,21 @@ use SourceEntityMETS;
 use Util;
 use XML::LibXML;
 
-my $earth_radius = 3963.1906;
-# my $earth_radius = 6378.1370;
+# use constant RADIUS_EARTH = 3963.1906; # miles
+use constant RADIUS_EARTH => 6378.1370; # km
 
-my $one_degree = (2 * pi * $earth_radius) / 360;
+use constant LENGTH_AT_EQUATOR => (2 * pi * RADIUS_EARTH) / 360;
 
 my $icon_url = "http://maps.google.com/mapfiles/kml/paddle";
 
-# XXX:
-# Assyria
-# Middle East
-# Asia Central
+my $highlight = {
+	"Asia, Central" => 1,
+	"Assyria" => 1,
+	"Babylonia" => 1,
+	"Kōs (Greece : Municipality)" => 1,
+	"Middle East" => 1,
+};
+
 my $scale = {
 	Egypt => 1.0,
 	Iran => 1.0,
@@ -43,11 +48,17 @@ my $scale = {
 
 my $log = MyLogger->get_logger();
 
+our $opt_g;  # use google for geocoder
 our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_w;  # www directory
-getopts('qr:t:w:');
+getopts('gqr:t:w:');
+
+if ($opt_g && !$ENV{MAPS_API_KEY})
+{
+	$log->logdie("Must set envar MAPS_API_KEY for geocoder");
+}
 
 # quiet mode
 if ($opt_q)
@@ -103,7 +114,7 @@ $document->appendChild($name_document);
 
 # my @colors = qw(red blu grn ylw purple pink);
 my @colors = qw(red blu grn purple pink);
-for my $color (@colors)
+for my $color (@colors, "ylw")
 {
 	$document->appendChild(new_style($xml, $color));
 }
@@ -171,6 +182,7 @@ for my $wip_dir (@wip_dirs)
 		{
 			my $geo_cmd = "$app_home/geo-coords.py";
 # 			$geo_cmd .= " --debug" unless $opt_q;
+			$geo_cmd .= " -g google" if $opt_g;
 			$geo_cmd .= " $mods_file $coord_file";
 			my $output = sys($geo_cmd, {warnErrors => 1});
 		}
@@ -183,34 +195,51 @@ for my $wip_dir (@wip_dirs)
 
 		$coord = read_coords_from_file($coord_file);
 
-		my $area = sys("$app_home/country-data.py",
-			$coord->{location}, {warnErrors => 1});
+		my $area = sys("$app_home/lookup-area.py",
+			$coord->{location}, {warnErrors => 1}) || 0;
 
 		$log->debug("Area $coord->{location}: $area");
 
-		my $lat = jitter($coord->{latitude}, $scale->{$coord->{location}});
-		my $lng = jitter($coord->{longitude}, $scale->{$coord->{location}});
+		my $max_jitter = int(sqrt($area) / 4);
+
+		my $lat = $coord->{latitude};
+		my $lng = $coord->{longitude};
+
 		$log->debug("Coordinates: $lat,$lng");
+
+# 		$lat = jitter($lat, $scale->{$coord->{location}});
+# 		$lng = jitter($lng, $scale->{$coord->{location}});
+
+		$lat = jitter_latlong($lat, "lat", $lat, $max_jitter);
+		$lng = jitter_latlong($lng, "lng", $lat, $max_jitter);
+
+		$log->debug("Jittered Coordinates: $lat,$lng");
+
+		my $pin_color;
+		if ($highlight->{$coord->{location}}) {
+			$pin_color = "ylw";
+		} else {
+			$pin_color = $colors[$num_placemarks % @colors];
+		}
 
 		my $placemark = $xml->createElement("Placemark");
 		$placemark->setAttribute('id', $id);
 		$document->appendChild($placemark);
-
 		my $style_url = $xml->createElement("styleUrl");
-		my $style_ref = "#" . $colors[$num_placemarks % @colors] . "pin";
-		$style_url->appendTextNode($style_ref);
+		$style_url->appendTextNode("#${pin_color}pin");
 		my $name_placemark = $xml->createElement("name");
 		$name_placemark->appendTextNode($mods->title);
 		my $description = $xml->createElement("description");
 
 		my $title     = $mods->title;
 		my $authors   = join(' - ', $mods->author);
-		my $publisher = $mods->publisher;
-		my $location  = $mods->pub_loc;
+		my $publisher = $mods->publisher || "";
+		my $location  = $mods->pub_loc || "";
 		my $date      = $mods->pub_date_formatted;
 		my $lang      = $mods->language;
 		my $desc_str  = $mods->description || "";
 		my $call_num  = $mods->call_number || "";
+		my $geo_subj  = $mods->geo_subject;
 		my $handle    = Util::get_handle("$wip_dir/$id/handle");
 
 		my $www_dir = $opt_w || $aux_dir;
@@ -347,7 +376,11 @@ EOF
             </tr>
             <tr>
               <td>Geo Subject</td>
-              <td>$coord->{location}</td>
+              <td>$geo_subj</td>
+            </tr>
+            <tr>
+              <td>ID</td>
+              <td>$id</td>
             </tr>
           </table>
         </div>
@@ -400,8 +433,8 @@ sub gaussian_rand
 
 	do
 	{
-		$u1 = 2 * rand() - 1;
-		$u2 = 2 * rand() - 1;
+		$u1 = random();
+		$u2 = random();
 		$w  = $u1 * $u1 + $u2 * $u2;
 	} while ($w >= 1 || $w == 0);
 
@@ -452,5 +485,33 @@ sub new_style
 	$style->appendChild($icon_style);
 
 	return $style;
+}
+
+
+sub random
+{
+	return 2 * rand() - 1;
+}
+
+
+sub jitter_latlong
+{
+	my ($coord, $type, $latitude, $km) = @_;
+	$latitude = $coord if !defined($latitude) && $type == "lat";
+	$km ||= 5;
+	my $km_per_degree = length_of_degree($latitude, $type);
+	my $degree_per_km = 1 / $km_per_degree;
+	return $coord + (random() * $degree_per_km * $km);
+}
+
+
+sub length_of_degree
+{
+	my ($degree, $type) = @_;
+	if ($type eq "lat") {
+		return LENGTH_AT_EQUATOR;
+	} elsif ($type eq "lng") {
+		return cos($degree * (2 * pi) / 360) * LENGTH_AT_EQUATOR;
+	}
 }
 
