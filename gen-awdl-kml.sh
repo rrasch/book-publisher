@@ -16,7 +16,7 @@ do
 	tmp=${rstar_dir%/awdl}
 	partner=${tmp##*/}
 	kml_file="$tmpdir/$partner.kml"
-	$bindir/gen-kml.pl -r $rstar_dir > $kml_file
+	$bindir/gen-kml.pl -g -r $rstar_dir > $kml_file
 	[ ! -s "$kml_file" ] && rm -f $kml_file
 done
 
