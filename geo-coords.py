@@ -26,7 +26,21 @@ import json
 import logging
 import os
 import sys
+import yaml
 
+
+def lookup_coord(loc_name, geocoder):
+    geocoder_class = get_geocoder_for_service(geocoder)
+    logging.debug("geocoder class: %s", geocoder_class)
+    ua_name = "dlts_geo_app/0.1"
+    geolocator = geocoder_class(**geocoder_args)
+    location = geolocator.geocode(loc_name)
+    if not location:
+        print((f"Couldn't find coordinates for {loc_name} "
+               f"using {args.geocoder.capitalize()} Maps API"),
+            file=sys.stderr)
+        exit(1)
+    return [location.latitude, location.longitude]
 
 parser = argparse.ArgumentParser(
     description="Get geographic coordinates from MODS subject")
@@ -43,11 +57,22 @@ args = parser.parse_args()
 if args.debug:
     logging.getLogger().setLevel(logging.DEBUG)
 
+# Script directory
+app_home = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+#  File mapping location to an alternate name or
+#  pair of coordinates. Sometimes the geocoding service
+#  can't find ancient cities so we need to provide the
+#  present day name for that location.  If that isn't
+#  available, provide coordinates.
+locmap_file = os.path.join(app_home, "locmap.yaml")
+
+# User agent str for calls to web service
 geocoder_args = { "user_agent": "dlts_geo_app/0.1" }
 
+# Make sure api key is set if service requires it
 api_key = os.environ.get('MAPS_API_KEY')
-
-if args.geocoder == "google":
+if args.geocoder in ["google"]:
     if api_key:
         geocoder_args['api_key'] = api_key
     else:
@@ -58,6 +83,7 @@ if args.geocoder == "google":
 nsmap = {"m": "http://www.loc.gov/mods/v3"}
 xpath = "//m:subject[@authority='lcsh']/m:geographic"
 
+# Get geographic subject from MODS
 mods = etree.parse(args.mods_file)
 geo_subj = mods.xpath(xpath, namespaces=nsmap)
 if geo_subj:
@@ -69,30 +95,41 @@ else:
 
 logging.debug("Location: %s", loc_name)
 
-geocoder_class = get_geocoder_for_service(args.geocoder)
-logging.debug("geocoder class: %s", geocoder_class)
+with open(locmap_file) as f:
+    locmap = yaml.full_load(f) or {}
 
-ua_name = "dlts_geo_app/0.1"
-geolocator = geocoder_class(**geocoder_args)
-location = geolocator.geocode(loc_name)
+# list of sources (location map or geocoder service)
+# use to lookup coordinates
+sources = []
 
-if not location:
-    print((f"Couldn't find coordinates for {loc_name} "
-           f"using {args.geocoder.capitalize()} Maps API"),
-        file=sys.stderr)
-    exit(1)
+# Get coordinates from location map or by
+# querying geocoder service
+if loc_name in locmap:
+    val = locmap[loc_name]
+    logging.debug("locmap[%s]: %s", loc_name, val)
+    sources.append(locmap_file)
+    if isinstance(val, list):
+        lat, lng = val
+    else:
+        lat, lng = lookup_coord(val, args.geocoder)
+        sources.append(args.geocoder)
+else:
+    lat, lng = lookup_coord(loc_name, args.geocoder)
+    sources.append(args.geocoder)
 
 coord = {
     "location":  loc_name,
-    "latitude":  location.latitude,
-    "longitude": location.longitude
+    "latitude":  lat,
+    "longitude": lng,
+    "sources":   sources,
 }
 
 logging.debug("Coordinates %s", coord)
 
+# Print coordinates to stdout or a file
 if not args.coord_file or args.coord_file == "-":
-    print(json.dumps(coord, indent=2))
+    print(json.dumps(coord, indent=2, ensure_ascii=False))
 else:
-    with open(args.coord_file, "w") as outfile:
-        json.dump(coord, outfile, indent=2)
+    with open(args.coord_file, "w", encoding='utf-8') as outfile:
+        json.dump(coord, outfile, indent=2, ensure_ascii=False)
 
