@@ -355,8 +355,8 @@ EOF
         <div>
           <table>
             <tr>
-              <td>Handle</td>
-              <td><a href="http://hdl.handle.net/$handle">$handle</a></td>
+              <td>Title</td>
+              <td><a href="http://hdl.handle.net/$handle">$title</a></td>
             </tr>
             <tr>
               <td>Author</td>
