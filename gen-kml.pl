@@ -232,6 +232,7 @@ for my $wip_dir (@wip_dirs)
 		my $description = $xml->createElement("description");
 
 		my $title     = $mods->title;
+		my $subtitle  = $mods->subtitle || "";
 		my $authors   = join(' - ', $mods->author);
 		my $publisher = $mods->publisher || "";
 		my $location  = $mods->pub_loc || "";
@@ -357,6 +358,10 @@ EOF
             <tr>
               <td>Title</td>
               <td><a href="http://hdl.handle.net/$handle">$title</a></td>
+            </tr>
+            <tr>
+              <td>Subtitle</td>
+              <td>$subtitle</td>
             </tr>
             <tr>
               <td>Author</td>
