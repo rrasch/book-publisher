@@ -53,7 +53,8 @@ our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_w;  # www directory
-getopts('gqr:t:w:');
+our $opt_c;  # pin color
+getopts('gqr:t:w:c:');
 
 if ($opt_g && !$ENV{MAPS_API_KEY})
 {
@@ -216,7 +217,9 @@ for my $wip_dir (@wip_dirs)
 		$log->debug("Jittered Coordinates: $lat,$lng");
 
 		my $pin_color;
-		if ($highlight->{$coord->{location}}) {
+		if ($opt_c) {
+			$pin_color = $opt_c;
+		} elsif ($highlight->{$coord->{location}}) {
 			$pin_color = "ylw";
 		} else {
 			$pin_color = $colors[$num_placemarks % @colors];
