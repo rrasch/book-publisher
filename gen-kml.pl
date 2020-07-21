@@ -201,7 +201,9 @@ for my $wip_dir (@wip_dirs)
 
 		$log->debug("Area $coord->{location}: $area");
 
-		my $max_jitter = int(sqrt($area) / 4);
+		# Calculate max jitter as 1/3 of radius of
+		# circle with area equal to that of the location
+		my $max_jitter = int(sqrt($area / pi) / 3);
 
 		my $lat = $coord->{latitude};
 		my $lng = $coord->{longitude};
