@@ -47,8 +47,13 @@ my $app_home = dirname(abs_path($0));
 
 my $kdurc_file = "$app_home/conf/kdurc";
 
-our ($opt_f, $opt_q, $opt_r, $opt_t);
-getopts('fqr:t:');
+our $opt_f;  # force removal of output files
+our $opt_q;  # quiet mode
+our $opt_s;  # use sip directory
+our $opt_x;  # use xip directory
+our $opt_r;  # rstar directory
+our $opt_t;  # tmp directory
+getopts('fqsxr:t:');
 
 # quiet mode
 if ($opt_q)
@@ -62,7 +67,17 @@ my $tmpdir = tempdir(DIR => $tmpdir_base, CLEANUP => 1);
 $log->debug("Temp directory: $tmpdir");
 $ENV{TMPDIR} = $tmpdir;
 
-my $wip_dir = ($opt_r || config('rstar_dir')) . "/wip/se";
+my $subdir;
+if ($opt_s) {
+	$subdir = "sip";
+} elsif ($opt_x) {
+	$subdir = "xip";
+} else {
+	$subdir = "wip";
+}
+
+my $wip_dir =
+  ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/$subdir/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 
@@ -74,8 +89,17 @@ for my $id (@ids)
 	my $data_dir = "$wip_dir/$id/data";
 	my $aux_dir  = "$wip_dir/$id/aux";
 
+	my $resolution;
+
 # 	my @deriv_mkrs = sort(glob("$data_dir/$id*d.tif"));
 	my @deriv_mkrs = sort(glob("$data_dir/*d.tif"));
+
+	if (!@deriv_mkrs)
+	{
+		$log->debug("No TIFF images, looking for JPEG 2000 files.");
+		@deriv_mkrs = grep(!/_2up_/, sort(glob("$data_dir/*o.jp2")));
+		$resolution = 400;
+	}
 
 	if (!@deriv_mkrs)
 	{
@@ -102,20 +126,23 @@ for my $id (@ids)
 		$stat->add_data($$exif{XResolution});
 	}
 
-	my $resolution;
-	if ($stat->count() == 1) {
-		($resolution) = $stat->get_data();
-	} elsif (!defined($stat->mode())) {
-		$resolution = $stat->min();
-	} else {
-		$resolution = $stat->mode();
+	if (!$resolution)
+	{
+		if ($stat->count() == 1) {
+			($resolution) = $stat->get_data();
+		} elsif (!defined($stat->mode())) {
+			$resolution = $stat->min();
+		} else {
+			$resolution = $stat->mode();
+		}
 	}
+
 	$log->info("Setting resolution to $resolution.");
 
 	for (my $i = 0; $i < @deriv_mkrs; $i++)
 	{
 		my $basename = basename($deriv_mkrs[$i]);
-		$basename =~ s/d\.tif$//;
+		$basename =~ s/(d\.tif|o\.jp2)$//;
 
 		my $tif_file   = "$aux_dir/${basename}d.tif";
 		my $jp2_file   = "$aux_dir/${basename}d.jp2";
@@ -127,7 +154,9 @@ for my $id (@ids)
 		delete $exif_data[$i]->{PhotoshopThumbnail};
 		$log->debug(Dumper($exif_data[$i]));
 
-		my ($orig_depth) = split(/\s+/, ${$exif_data[$i]}{BitsPerSample});
+		my $orig_depth = ${$exif_data[$i]}{BitsPerSample}
+		  || ${$exif_data[$i]}{BitsPerComponent};
+		($orig_depth) = split(/\s+/, $orig_depth);
 		$log->debug("Original color depth: $orig_depth bit");
 
 		my $new_depth;
@@ -163,7 +192,8 @@ sub convert
 	} else {
 		$convert = "convert $input_file\[0]";
 		if ($output_file =~ /d\.tif$/) {
-			$convert .= " -strip -density $params->{resolution} ";
+			$convert .= " -strip -density $params->{resolution}";
+			$convert .= " -units PixelsPerInch";
 			$convert .= " -alpha off";
 			$convert .= " -colorspace sRGB -type TrueColor";
 			$convert .= " -depth $params->{depth}" if $params->{depth};

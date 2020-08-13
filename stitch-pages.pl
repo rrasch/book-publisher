@@ -34,11 +34,13 @@ my $convert_args = "-colorspace sRGB -type TrueColor";
 
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
+our $opt_s;  # use sip directory
+our $opt_x;  # use xip directory
 our $opt_b;  # border width in pixels
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 
-getopts('fqb:r:t:');
+getopts('fqsxb:r:t:');
 
 $opt_b ||= '0';
 
@@ -76,7 +78,17 @@ my $app_home = dirname(abs_path($0));
 
 my $kdurc_file = "$app_home/conf/kdurc";
 
-my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
+my $subdir;
+if ($opt_s) {
+	$subdir = "sip";
+} elsif ($opt_x) {
+	$subdir = "xip";
+} else {
+	$subdir = "wip";
+}
+
+my $wip_dir =
+  ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/$subdir/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 

@@ -34,6 +34,9 @@ our $opt_q;  # quiet logging
 our $opt_i;  # generate pdf using ImageMagick
 our $opt_o;  # generate pdf with ocr
 our $opt_e;  # generate pdf with ExactImage adding previously created hocr
+our $opt_s;  # use sip directory
+our $opt_x;  # use xip directory
+our $opt_n;  # don't use METS to get file structure; use filenames instead
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
@@ -42,7 +45,7 @@ our $opt_m;  # tesseract ocr engine mode
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
 my @args = @ARGV;
-my $success = getopts('fqioer:t:c:b:m:');
+my $success = getopts('fqioesxnr:t:c:b:m:');
 if (!$success)
 {
 	$log->logdie("Problem parsing command line args '@args'.");
@@ -88,7 +91,17 @@ mk_lept_tmpdir();
 
 my $host = hostname();
 
-my $wip_dir = ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/wip/se";
+my $subdir;
+if ($opt_s) {
+	$subdir = "sip";
+} elsif ($opt_x) {
+	$subdir = "xip";
+} else {
+	$subdir = "wip";
+}
+
+my $wip_dir =
+  ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/$subdir/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 
@@ -158,32 +171,50 @@ for my $id (@ids)
 	my $data_dir = "$wip_dir/$id/data";
 	my $aux_dir  = "$wip_dir/$id/aux";
 
-	my $mets_file = "$data_dir/${id}_mets.xml";
-	$log->debug("Source entity METS file: $mets_file");
-
-	if (!-f $mets_file)
+	my $mets;
+	my @file_ids = ();
+	if ($opt_n)
 	{
-		$log->warn("Source entity METS file $mets_file doesn't exist.");
-		next;
+		my @deriv_mkrs = sort(glob("$aux_dir/*d.tif"));
+		for my $deriv_mkr (@deriv_mkrs)
+		{
+			my $file_id = basename($deriv_mkr);
+			$file_id =~ s/_d\.tif$//;
+			push(@file_ids, $file_id);
+		}
+	}
+	else
+	{
+		my $mets_file = "$data_dir/${id}_mets.xml";
+		$log->debug("Source entity METS file: $mets_file");
+		if (!-f $mets_file)
+		{
+			$log->warn("Source entity METS file $mets_file doesn't exist.");
+			next;
+		}
+		$mets = SourceEntityMETS->new($mets_file);
+		@file_ids = $mets->get_file_ids();
 	}
 
-	my $mets = SourceEntityMETS->new($mets_file);
-
-	my @file_ids = $mets->get_file_ids();
-
-	my $mods_file = $mets->get_mods_file;
-	$log->debug("MODS file: $mets_file");
-	my $mods = MODS->new($mods_file);
-
-	my $lang = $mods->lang_code();
-	$log->debug("Language = $lang");
-	if (!$lang)
+	my $tess_lang;
+	if ($opt_o)
 	{
-		$log->logdie("Can't find language in MODS file.");
+		my $mods_file;
+		if ($opt_n) {
+			$mods_file = (glob("$data_dir/*_mods.xml"))[0];
+		} else {
+			$mods_file = $mets->get_mods_file;
+		}
+		$log->debug("MODS file: $mods_file");
+		my $mods = MODS->new($mods_file);
+		my $lang = $mods->lang_code();
+		$log->debug("Language = $lang");
+		if (!$lang)
+		{
+			$log->logdie("Can't find language in MODS file.");
+		}
+		$tess_lang = LangCode::term_code($lang) || $lang;
 	}
-	my $tess_lang = LangCode::term_code($lang) || $lang;
-
-	my $bg_color = $opt_b;
 
 	if ($opt_e)
 	{
@@ -200,6 +231,8 @@ for my $id (@ids)
 		merge_pdfs(\@files, "$aux_dir/${id}_hocr.pdf");
 		next;
 	}
+
+	my $bg_color = $opt_b;
 
 	my $files;
 	for my $profile (@img_profiles)
