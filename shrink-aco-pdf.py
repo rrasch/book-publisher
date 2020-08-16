@@ -252,8 +252,15 @@ for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
 # reassemble pdf by combining reduced images
 # and extracted hocr files
 tmp_pdf_file = f"{tmpdir}/tmp.pdf"
-do_cmd(['hocr-pdf', '--scale-hocr', scale_hocr,
-    '--savefile', tmp_pdf_file, tmpdir])
+hocr_pdf = [
+    'hocr-pdf',
+    '--scale-hocr', scale_hocr,
+    '--savefile', tmp_pdf_file
+]
+if args.use_existing_hocr:
+    hocr_pdf.append('--reverse')
+hocr_pdf.append(tmpdir)
+do_cmd(hocr_pdf)
 do_cmd(['exiftool', '-q', '-m', '-all:all=', tmp_pdf_file])
 do_cmd(['qpdf', '--linearize', tmp_pdf_file, args.output_file])
 
