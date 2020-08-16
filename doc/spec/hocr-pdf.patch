@@ -1,6 +1,6 @@
 diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
 --- hocr-tools-1.3.0.orig/hocr-pdf	2019-03-02 10:33:48.000000000 -0500
-+++ hocr-tools-1.3.0/hocr-pdf	2020-05-18 19:50:32.425443982 -0400
++++ hocr-tools-1.3.0/hocr-pdf	2020-08-16 15:14:55.659921397 -0400
 @@ -31,7 +31,7 @@
  from reportlab.pdfbase.ttfonts import TTFont
  from reportlab.pdfgen.canvas import Canvas
@@ -15,7 +15,7 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
  
  
 -def export_pdf(playground, default_dpi, savefile=False):
-+def export_pdf(playground, default_dpi, scale_hocr, savefile=False):
++def export_pdf(playground, default_dpi, scale_hocr, reverse, savefile=False):
      """Create a searchable PDF from a pile of HOCR + JPEG"""
 -    load_invisible_font()
 +    #load_invisible_font()
@@ -28,13 +28,13 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
          pdf.setPageSize((width, height))
          pdf.drawImage(image, 0, 0, width=width, height=height)
 -        add_text_layer(pdf, image, height, dpi)
-+        add_text_layer(pdf, image, height, dpi, scale_hocr)
++        add_text_layer(pdf, image, height, dpi, scale_hocr, reverse)
          pdf.showPage()
      pdf.save()
  
  
 -def add_text_layer(pdf, image, height, dpi):
-+def add_text_layer(pdf, image, height, dpi, scale_hocr):
++def add_text_layer(pdf, image, height, dpi, scale_hocr, reverse):
      """Draw an invisible text layer for OCR data"""
 -    p1 = re.compile(r'bbox((\s+\d+){4})')
 +    scale_to_pts = 72 / dpi * scale_hocr
@@ -57,11 +57,13 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
          xpath_elements = './/*[@class="ocrx_word"]'
          if (not (line.xpath('boolean(' + xpath_elements + ')'))):
              # if there are no words elements present,
-@@ -95,18 +97,23 @@
+@@ -95,18 +97,25 @@
              rawtext = word.text_content().strip()
              if rawtext == '':
                  continue
 -            font_width = pdf.stringWidth(rawtext, 'invisible', 8)
++            if reverse:
++                rawtext = rawtext[::-1]
 +            box = p1.search(word.attrib['title']).group(1).split()
 +            box = [max(float(i), 0.0) for i in box]
 +            #font_name = 'invisible'
@@ -87,7 +89,7 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
              text.setHorizScale(100.0 * box_width / font_width)
              text.textLine(rawtext)
              pdf.drawText(text)
-@@ -148,6 +155,11 @@
+@@ -148,6 +157,11 @@
      pdfmetrics.registerFont(TTFont('invisible', ttf))
  
  
@@ -99,7 +101,7 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
  if __name__ == "__main__":
      parser = argparse.ArgumentParser(
          description="Create a searchable PDF from a pile of hOCR and JPEG")
-@@ -161,5 +173,12 @@
+@@ -161,5 +175,17 @@
          "--savefile",
          help="Save to this file instead of outputting to stdout"
      )
@@ -110,6 +112,11 @@ diff -ur hocr-tools-1.3.0.orig/hocr-pdf hocr-tools-1.3.0/hocr-pdf
 +        type=float,
 +        default=1.0
 +    )
++    parser.add_argument(
++        "--reverse",
++        help="Reverse words in hocr files",
++        action="store_true"
++    )
      args = parser.parse_args()
 -    export_pdf(args.imgdir, 300, args.savefile)
-+    export_pdf(args.imgdir, 300, args.scale_hocr, args.savefile)
++    export_pdf(args.imgdir, 300, args.scale_hocr, args.reverse, args.savefile)
