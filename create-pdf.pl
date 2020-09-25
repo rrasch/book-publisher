@@ -42,10 +42,11 @@ our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
 our $opt_b;  # background color to fill pdf pages
 our $opt_m;  # tesseract ocr engine mode
+our $opt_l;  # tesseract language
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
 my @args = @ARGV;
-my $success = getopts('fqioesxnr:t:c:b:m:');
+my $success = getopts('fqioesxnr:t:c:b:m:l:');
 if (!$success)
 {
 	$log->logdie("Problem parsing command line args '@args'.");
@@ -199,21 +200,28 @@ for my $id (@ids)
 	my $tess_lang;
 	if ($opt_o)
 	{
-		my $mods_file;
-		if ($opt_n) {
-			$mods_file = (glob("$data_dir/*_mods.xml"))[0];
-		} else {
-			$mods_file = $mets->get_mods_file;
-		}
-		$log->debug("MODS file: $mods_file");
-		my $mods = MODS->new($mods_file);
-		my $lang = $mods->lang_code();
-		$log->debug("Language = $lang");
-		if (!$lang)
+		if ($opt_l)
 		{
-			$log->logdie("Can't find language in MODS file.");
+			$tess_lang = $opt_l;
 		}
-		$tess_lang = LangCode::term_code($lang) || $lang;
+		else
+		{
+			my $mods_file;
+			if ($opt_n) {
+				$mods_file = (glob("$data_dir/*_mods.xml"))[0];
+			} else {
+				$mods_file = $mets->get_mods_file;
+			}
+			$log->debug("MODS file: $mods_file");
+			my $mods = MODS->new($mods_file);
+			my $lang = $mods->lang_code();
+			$log->debug("Language = $lang");
+			if (!$lang)
+			{
+				$log->logdie("Can't find language in MODS file.");
+			}
+			$tess_lang = LangCode::term_code($lang) || $lang;
+		}
 	}
 
 	if ($opt_e)
