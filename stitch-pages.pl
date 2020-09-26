@@ -32,15 +32,24 @@ my $jp2_compression_ratio = 1 / 100;
 
 my $convert_args = "-colorspace sRGB -type TrueColor";
 
+my $log = MyLogger->get_logger();
+
 our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
 our $opt_s;  # use sip directory
 our $opt_x;  # use xip directory
+our $opt_o;  # does nothing; option compatible with create-pdf.pl
 our $opt_b;  # border width in pixels
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 
-getopts('fqsxb:r:t:');
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+my @args = @ARGV;
+my $success = getopts('fqsxob:r:t:');
+if (!$success)
+{
+	$log->logdie("Problem parsing command line args '@args'.");
+}
 
 $opt_b ||= '0';
 
@@ -56,8 +65,6 @@ $convert_args .= " -background black";
 $convert_args .= " -splice ${opt_b}x0" if $opt_b;
 $convert_args .= " +append";
 $convert_args .= " -chop ${opt_b}x0" if $opt_b;
-
-my $log = MyLogger->get_logger();
 
 # quiet mode
 if ($opt_q)

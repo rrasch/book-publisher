@@ -2,7 +2,7 @@
 
 %define gitver	.git.%(date +"%Y%m%d")
 %define name	book-publisher
-%define version	1.0.4
+%define version	1.0.6
 %define release	1.dlts%{?gitver}%{?dist}
 %define dlibdir	/usr/local/dlib/%{name}
 %define liburl	https://github.com/rrasch/libpublishing
@@ -218,7 +218,7 @@ mkdir -p %{buildroot}%{dlibdir}/bin
 cp -r conf %{buildroot}%{dlibdir}
 cp -r doc  %{buildroot}%{dlibdir}
 cp -r lib  %{buildroot}%{dlibdir}
-cp *.pl *.sh *.php %{buildroot}%{dlibdir}/bin
+cp *.pl *.sh *.php *.py %{buildroot}%{dlibdir}/bin
 
 find %{buildroot}%{dlibdir} -type d | xargs chmod 0775
 find %{buildroot}%{dlibdir} -type f | xargs chmod 0664

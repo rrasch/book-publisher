@@ -51,9 +51,12 @@ our $opt_f;  # force removal of output files
 our $opt_q;  # quiet mode
 our $opt_s;  # use sip directory
 our $opt_x;  # use xip directory
+our $opt_o;  # does nothing; option compatible with create-pdf.pl
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
-getopts('fqsxr:t:');
+
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+getopts('fqsxor:t:');
 
 # quiet mode
 if ($opt_q)
