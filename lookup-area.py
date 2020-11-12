@@ -1,10 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/local/bin/pywrapper
 
 import argparse
 import countryinfo
 import json
 import os
 import sys
+
+# directory for natural earth map files
+DATA_DIR = '/usr/share/natural-earth-map-data'
 
 # geojson data file for world cities
 CITY_FILE = 'ne_50m_populated_places.geojson'
@@ -24,7 +27,7 @@ def country_area(location):
 
 def city_area(location):
     app_home = os.path.dirname(os.path.abspath(sys.argv[0]))
-    city_file = os.path.join(app_home, CITY_FILE)
+    city_file = os.path.join(DATA_DIR, CITY_FILE)
     area = {}
     with open(city_file) as f:
         city_data = json.load(f)
