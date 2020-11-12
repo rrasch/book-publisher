@@ -149,6 +149,10 @@ Requires:	tesseract-langpack-uzb_cyrl
 Requires:	tesseract-langpack-vie
 Requires:	tesseract-langpack-yid
 %endif
+%if 0%{?rhel} >= 7
+Requires:	dlts-publishing-pyenv
+Requires:	natural-earth-map-data
+%endif
 
 %description
 %{summary}
@@ -204,6 +208,10 @@ perl -pi -e 's,FindBin::Bin/lib,FindBin::Bin/../lib,' *.pl
 perl -pi -e 's,dirname\(abs_path\(\$0\)\),"%{dlibdir}",' *.pl
 # perl -pi -e 's,/etc/content-publishing/book,/usr/local/dlib/content_publishing/book/conf,' *.pl
 perl -pi -e 's,./lib/simplehtmldom,../lib/simplehtmldom,' fix-hocr.php
+
+%if 0%{?rhel} >= 7
+perl -pi -e "s,#!/usr/bin/env python3,#!%{_bindir}/dlts-python," *.py
+%endif
 
 %build
 
