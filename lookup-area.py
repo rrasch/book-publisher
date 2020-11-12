@@ -1,4 +1,4 @@
-#!/usr/local/bin/pywrapper
+#!/usr/bin/env python3
 
 import argparse
 import countryinfo
