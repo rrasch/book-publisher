@@ -85,6 +85,9 @@ if (@wip_dirs > 1 && @wip_ids)
 	$log->logdie("Can't set wip ids if specifying multiple rstar dirs.");
 }
 
+my $agent = WWW::Mechanize->new();
+$agent->max_redirect(0);
+
 my $api_key = config('gmaps_api_key') || "";
 
 my $xml = XML::LibXML::Document->new("1.0", "UTF-8");
@@ -150,6 +153,16 @@ for my $wip_dir (@wip_dirs)
 		my $mods      = MODS->new($mods_file);
 		my $mods_lang = $mods->get_languages();
 		$mods->set_language("Latn") if $mods_lang->{Latn};
+
+		my $handle = Util::get_handle("$wip_dir/$id/handle");
+		my $handle_url = "http://hdl.handle.net/$handle";
+		my $res = $agent->get($handle_url);
+		my $loc = $res->header('location') || "";
+		if ($loc =~ /object-in-processing/)
+		{
+			$log->debug("$id is object-in-processing ... Skipping");
+			next;
+		}
 
 		my $tmp_file   = "$tmpdir/${id}_geo_coord.json";
 		my $coord_file = "$aux_dir/${id}_geo_coord.json";
@@ -246,7 +259,6 @@ for my $wip_dir (@wip_dirs)
 		my $desc_str  = $mods->description || "";
 		my $call_num  = $mods->call_number || "";
 		my $geo_subj  = $mods->geo_subject;
-		my $handle    = Util::get_handle("$wip_dir/$id/handle");
 
 		my $www_dir = $opt_w || $aux_dir;
 		$tmp_file = "$tmpdir/${id}_gmaps.html";
