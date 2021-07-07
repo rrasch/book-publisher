@@ -63,8 +63,8 @@ if ($opt_b && $opt_b !~ /^\d+$/)
 
 $convert_args .= " -background black";
 $convert_args .= " -splice ${opt_b}x0" if $opt_b;
-$convert_args .= " +append";
-$convert_args .= " -chop ${opt_b}x0" if $opt_b;
+$convert_args .= " -gravity Center +append +repage";
+$convert_args .= " -gravity West -chop ${opt_b}x0" if $opt_b;
 
 # quiet mode
 if ($opt_q)
