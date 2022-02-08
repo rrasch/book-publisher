@@ -2,7 +2,18 @@
 
 WWW_DIR="$HOME/maps"
 
-RSTAR_DIR=`echo /content/prod/rstar/content/*/aco | tr ' ' ':'`
+if [ $# -ne 1 ]; then
+	echo "Usage: $0 <collection>"
+	exit
+fi
 
-./gen-kml.pl -w $WWW_DIR -r $RSTAR_DIR > $WWW_DIR/maps.kml
+COLL=$1
+
+RSTAR_DIR=`echo /content/prod/rstar/content/*/$COLL | tr ' ' ':'`
+
+./gen-kml.pl \
+	-g \
+	-c red \
+	-w $WWW_DIR \
+	-r $RSTAR_DIR > ${WWW_DIR}/${COLL}.kml
 
