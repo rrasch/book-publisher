@@ -2,13 +2,27 @@
 #
 # Author: rasan@nyu.edu
 
+set -u
+
+GS="/usr/local/bin/gs"
+if [ ! -x "$GS" ]; then
+	GS=`command -v gs`
+fi
+
+echo "GS: $GS"
+
 PDF_FILE=$1
 
-echo $PDF_FILE
+echo "FILE: $PDF_FILE"
+
+read -r w h <<< `pdfinfo "${PDF_FILE}" | grep Page.size | awk '{print $3, $5}'`
+
+echo "HEIGHT: $h"
+echo "WIDTH: $w"
 
 NUM_PAGES=`pdfinfo "${PDF_FILE}" | grep Pages | sed 's/[^0-9]*//'`
 
-echo $NUM_PAGES
+echo "NUM PAGES: $NUM_PAGES"
 
 pdfseparate "$PDF_FILE" page-%d.pdf
 
@@ -21,9 +35,9 @@ get_file_name ()
 
 for i in `seq 1 $NUM_PAGES`; do
 	echo $i
-	gs -q -dNOPAUSE -sDEVICE=tiff24nc -dBATCH -r300 \
+	$GS -q -dNOPAUSE -sDEVICE=tiff24nc -dBATCH -r300 \
 		-sOutputFile=page-$i.tif page-$i.pdf
-	if [ $i -gt 1 -a $i -lt $NUM_PAGES ]; then
+	if [ $w -gt $h -a $i -gt 1 -a $i -lt $NUM_PAGES ]; then
 		convert page-$i.tif -crop 50%x100% +repage \
 			-colorspace sRGB -type TrueColor \
 			-compress lzw half-%d.tif
