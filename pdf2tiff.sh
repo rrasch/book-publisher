@@ -2,7 +2,7 @@
 #
 # Author: rasan@nyu.edu
 
-set -u
+set -eu
 
 GS="/usr/local/bin/gs"
 if [ ! -x "$GS" ]; then
@@ -15,6 +15,12 @@ PDF_FILE=$1
 
 echo "FILE: $PDF_FILE"
 
+BASENAME=$(basename -- "$PDF_FILE")
+BASENAME=${BASENAME%.*}
+BASENAME=${BASENAME//[^[:alnum:]_-]/}
+
+echo "BASENAME: $BASENAME"
+
 read -r w h <<< `pdfinfo "${PDF_FILE}" | grep Page.size | awk '{print $3, $5}'`
 
 echo "HEIGHT: $h"
@@ -24,17 +30,19 @@ NUM_PAGES=`pdfinfo "${PDF_FILE}" | grep Pages | sed 's/[^0-9]*//'`
 
 echo "NUM PAGES: $NUM_PAGES"
 
+echo "Splitting pdf using pdfseparate"
 pdfseparate "$PDF_FILE" page-%d.pdf
-
-page_num=1
 
 get_file_name ()
 {
-	printf 'out-%06d.tif' $page_num
+	local page_no=$1
+	printf '%s-%06d.tif' $BASENAME $page_no
 }
 
+page_num=1
+
 for i in `seq 1 $NUM_PAGES`; do
-	echo $i
+	echo "Processing page $i"
 	$GS -q -dNOPAUSE -sDEVICE=tiff24nc -dBATCH -r300 \
 		-sOutputFile=page-$i.tif page-$i.pdf
 	if [ $w -gt $h -a $i -gt 1 -a $i -lt $NUM_PAGES ]; then
@@ -47,6 +55,7 @@ for i in `seq 1 $NUM_PAGES`; do
 	else
 		convert page-$i.tif -compress lzw `get_file_name $page_num`
 	fi
+	rm -v page-$i.pdf page-$i.tif
 	page_num=$((page_num+1))
 done
 
