@@ -48,13 +48,14 @@ my $scale = {
 
 my $log = MyLogger->get_logger();
 
+our $opt_f;  # force removal of coordinates file
 our $opt_g;  # use google for geocoder
 our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_w;  # www directory
 our $opt_c;  # pin color
-getopts('gqr:t:w:c:');
+getopts('fgqr:t:w:c:');
 
 if ($opt_g && !$ENV{MAPS_API_KEY})
 {
@@ -169,6 +170,14 @@ for my $wip_dir (@wip_dirs)
 		$log->debug("Coordinates file: $coord_file");
 		my $coord;
 		my $out;
+
+		if ($opt_f && -f $coord_file)
+		{
+			$log->debug("Removing $coord_file.");
+			unlink($coord_file)
+				or $log->logdie("Can't unlink $coord_file: $!");
+		}
+
 # 		if (-f $coord_file)
 # 		{
 # 			$coord = read_coords_from_file($coord_file);
