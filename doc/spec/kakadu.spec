@@ -18,9 +18,10 @@ Group:		System Environment/Libraries
 License:	Kakadu Non-Commercial
 URL:		http://kakadusoftware.com
 Source0:	%{real_version}.zip
-Patch:          kakadu-tiff.patch
+Patch0:		kakadu-tiff.patch
+Patch1:		kakadu-bool.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires:  libtiff-devel
+BuildRequires:	libtiff-devel
 
 
 %description
@@ -60,14 +61,15 @@ to encourage the widespread adoption of JPEG2000.
 
 %prep
 %setup -q -c
-%patch
+%patch0
+%patch1
 
 
 %build
-%if 0%{?centos} > 0
-export JAVA_HOME=/usr/java/latest
+%if 0%{?fedora} >= 35 || 0%{?rhel} >= 8
+export JAVA_HOME=/usr/lib/jvm/java-openjdk
 %else
-export JAVA_HOME=/usr/lib/jvm/java
+export JAVA_HOME=/usr/java/latest
 %endif
 export PATH=$JAVA_HOME/bin:$PATH
 

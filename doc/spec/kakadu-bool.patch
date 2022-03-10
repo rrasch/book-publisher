@@ -1,0 +1,24 @@
+diff -wur v6_4_1-01187N.orig/coresys/compressed/compressed.cpp v6_4_1-01187N/coresys/compressed/compressed.cpp
+--- v6_4_1-01187N.orig/coresys/compressed/compressed.cpp	2011-05-26 19:46:24.000000000 -0400
++++ v6_4_1-01187N/coresys/compressed/compressed.cpp	2022-01-11 12:16:27.300608127 -0500
+@@ -4062,7 +4062,7 @@
+       intermediate_nodes[b].is_leaf = false;
+       intermediate_nodes[b].num_descendant_nodes = 0;
+       intermediate_nodes[b].num_descendant_leaves = 0;
+-      intermediate_nodes[b].bibo_gains = false;
++      intermediate_nodes[b].bibo_gains = NULL;
+       for (n=0; n < 4; n++)
+         intermediate_nodes[b].children[n] = NULL;
+     }
+diff -wur v6_4_1-01187N.orig/coresys/transform/multi_transform.cpp v6_4_1-01187N/coresys/transform/multi_transform.cpp
+--- v6_4_1-01187N.orig/coresys/transform/multi_transform.cpp	2011-05-26 19:46:24.000000000 -0400
++++ v6_4_1-01187N/coresys/transform/multi_transform.cpp	2022-01-11 12:23:48.498247930 -0500
+@@ -1066,7 +1066,7 @@
+         {
+           scan = block->components + n;
+           if (scan->outstanding_consumers > 0)
+-            return false;
++            return NULL;
+         }
+ 
+       // If we get here, we can run the transform
