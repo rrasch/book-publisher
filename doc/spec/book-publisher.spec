@@ -52,7 +52,6 @@ Requires:	tesseract
 Requires:	tesseract-osd
 Requires:	tesseract-langpack-ara
 Requires:	tesseract-langpack-deu
-Requires:	tesseract-langpack-eng
 Requires:	tesseract-langpack-fra
 Requires:	tesseract-langpack-ita
 Requires:	tesseract-langpack-kat
