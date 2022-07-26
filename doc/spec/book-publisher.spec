@@ -47,7 +47,7 @@ Requires:	python3-pyyaml
 Requires:	python3-redis
 %endif
 Requires:	poppler-utils >= 0.87.0
-Requires:	qpdf >= 8.4
+Requires:	qpdf
 Requires:	tesseract
 Requires:	tesseract-osd
 Requires:	tesseract-langpack-ara
