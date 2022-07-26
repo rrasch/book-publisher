@@ -22,26 +22,41 @@ URL:		https://github.com/rrasch/%{name}
 BuildRoot:	%{_tmppath}/%{name}-root
 BuildArch:	noarch
 BuildRequires:	/usr/bin/perl
-%if 0%{?fedora} >= 31
 BuildRequires:	perl-generators
-BuildRequires:	perl-macros
-%endif
 BuildRequires:	git
+Requires:	hocr-tools
 Requires:	ImageMagick
 Requires:	kakadu
 Requires:	libtiff
-%if 0%{?rhel}
-Requires:	pdftk
-%else
-Requires:	pdfbox-tools
+%if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
+Requires:	libtiff-tools
 %endif
+Requires:	ocrodjvu
+Requires:	/usr/bin/pdftk
 Requires:	perl-Image-ExifTool
 Requires:	perl-SOAP-Lite
 Requires:	perl-DBD-MySQL
+Requires:	pdf2djvu
 Requires:	php-cli
-Requires:	poppler-utils
+%if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
+Requires:	python3-countryinfo
+Requires:	python3-geopy
+Requires:	python3-lxml
+Requires:	python3-pillow
+Requires:	python3-pyyaml
+Requires:	python3-redis
+%endif
+Requires:	poppler-utils >= 0.87.0
+Requires:	qpdf >= 8.4
 Requires:	tesseract
 Requires:	tesseract-osd
+Requires:	tesseract-langpack-ara
+Requires:	tesseract-langpack-deu
+Requires:	tesseract-langpack-eng
+Requires:	tesseract-langpack-fra
+Requires:	tesseract-langpack-ita
+Requires:	tesseract-langpack-kat
+Requires:	tesseract-langpack-kat_old
 %if %{with langpacks}
 Requires:	tesseract-langpack-afr
 Requires:	tesseract-langpack-amh
@@ -149,10 +164,10 @@ Requires:	tesseract-langpack-uzb_cyrl
 Requires:	tesseract-langpack-vie
 Requires:	tesseract-langpack-yid
 %endif
-%if 0%{?rhel} >= 7
-Requires:	dlts-publishing-pyenv
-Requires:	natural-earth-map-data
-%endif
+# if 0{?rhel} >= 7
+# Requires:	dlts-publishing-pyenv
+# Requires:	natural-earth-map-data
+# endif
 
 %description
 %{summary}
@@ -209,9 +224,9 @@ perl -pi -e 's,dirname\(abs_path\(\$0\)\),"%{dlibdir}",' *.pl
 # perl -pi -e 's,/etc/content-publishing/book,/usr/local/dlib/content_publishing/book/conf,' *.pl
 perl -pi -e 's,./lib/simplehtmldom,../lib/simplehtmldom,' fix-hocr.php
 
-%if 0%{?rhel} >= 7
-perl -pi -e "s,#!/usr/bin/env python3,#!%{_bindir}/dlts-python," *.py
-%endif
+# %if 0%{?rhel} >= 7
+# perl -pi -e "s,#!/usr/bin/env python3,#!%{_bindir}/dlts-python," *.py
+# %endif
 
 %build
 

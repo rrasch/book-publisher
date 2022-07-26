@@ -22,6 +22,9 @@ Patch0:		kakadu-tiff.patch
 Patch1:		kakadu-bool.patch
 BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:	libtiff-devel
+%if 0%{?fedora} >= 35 || 0%{?rhel} >= 8
+BuildRequires:	java-latest-openjdk-devel
+%endif
 
 
 %description
