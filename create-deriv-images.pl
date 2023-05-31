@@ -195,7 +195,9 @@ sub convert
 	} else {
 		$convert = "convert $input_file\[0]";
 		if ($output_file =~ /d\.tif$/) {
-			$convert .= " -strip -density $params->{resolution}";
+			$convert .= " -strip";
+			$convert .= " -auto-orient";
+			$convert .= " -density $params->{resolution}";
 			$convert .= " -units PixelsPerInch";
 			$convert .= " -alpha off";
 			$convert .= " -colorspace sRGB -type TrueColor";
