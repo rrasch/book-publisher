@@ -1,9 +1,11 @@
 %bcond_with langpacks
 
-%define gitver	.git.%(date +"%Y%m%d")
 %define name	book-publisher
-%define version	1.0.6
-%define release	1.dlts%{?gitver}%{?dist}
+%define version	1.0.7
+%define repourl	https://github.com/rrasch/%{name}
+%define gitdate	%(date +"%Y%m%d")
+%define commit	%(get-commit-id.sh %{repourl})
+%define release	1.dlts.git.%{gitdate}.%{commit}%{?dist}
 %define dlibdir	/usr/local/dlib/%{name}
 %define liburl	https://github.com/rrasch/libpublishing
 
@@ -18,7 +20,7 @@ Release:	%{release}
 License:	NYU DLTS
 Vendor:		NYU DLTS (rasan@nyu.edu)
 Group:		Applications/Publishing
-URL:		https://github.com/rrasch/%{name}
+URL:		%{repourl}
 BuildRoot:	%{_tmppath}/%{name}-root
 BuildArch:	noarch
 BuildRequires:	/usr/bin/perl
