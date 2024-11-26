@@ -36,100 +36,119 @@ def lookup_coord(loc_name, geocoder):
     geolocator = geocoder_class(**geocoder_args)
     location = geolocator.geocode(loc_name)
     if not location:
-        print((f"Couldn't find coordinates for {loc_name} "
-               f"using {args.geocoder.capitalize()} Maps API"),
-            file=sys.stderr)
+        print(
+            f"Couldn't find coordinates for {loc_name} "
+            f"using {args.geocoder.capitalize()} Maps API",
+            file=sys.stderr,
+        )
         exit(1)
     return [location.latitude, location.longitude]
 
-parser = argparse.ArgumentParser(
-    description="Get geographic coordinates from MODS subject")
-parser.add_argument("mods_file", metavar="MODS_FILE",
-    help="Input MODS file")
-parser.add_argument("coord_file", metavar="COORD_FILE", nargs="?",
-    help="Ouptput JSON coordinates file")
-parser.add_argument("-d", "--debug",
-    help="Enable debugging messages", action="store_true")
-parser.add_argument("-g", "--geocoder", default="nominatim",
-    help="Geocoder module for map requests")
-args = parser.parse_args()
 
-if args.debug:
-    logging.getLogger().setLevel(logging.DEBUG)
+def main():
+    parser = argparse.ArgumentParser(
+        description="Get geographic coordinates from MODS subject"
+    )
+    parser.add_argument(
+        "mods_file", metavar="MODS_FILE", help="Input MODS file"
+    )
+    parser.add_argument(
+        "coord_file",
+        metavar="COORD_FILE",
+        nargs="?",
+        help="Ouptput JSON coordinates file",
+    )
+    parser.add_argument(
+        "-d", "--debug", help="Enable debugging messages", action="store_true"
+    )
+    parser.add_argument(
+        "-g",
+        "--geocoder",
+        default="nominatim",
+        help="Geocoder module for map requests",
+    )
+    args = parser.parse_args()
 
-# Script directory
-app_home = os.path.dirname(os.path.abspath(sys.argv[0]))
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
-#  File mapping location to an alternate name or
-#  pair of coordinates. Sometimes the geocoding service
-#  can't find ancient cities so we need to provide the
-#  present day name for that location.  If that isn't
-#  available, provide coordinates.
-locmap_file = os.path.join(app_home, "locmap.yaml")
+    # Script directory
+    app_home = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-# User agent str for calls to web service
-geocoder_args = { "user_agent": "dlts_geo_app/0.1" }
+    #  File mapping location to an alternate name or
+    #  pair of coordinates. Sometimes the geocoding service
+    #  can't find ancient cities so we need to provide the
+    #  present day name for that location.  If that isn't
+    #  available, provide coordinates.
+    locmap_file = os.path.join(app_home, "locmap.yaml")
 
-# Make sure api key is set if service requires it
-api_key = os.environ.get('MAPS_API_KEY')
-if args.geocoder in ["google"]:
-    if api_key:
-        geocoder_args['api_key'] = api_key
+    # User agent str for calls to web service
+    geocoder_args = {"user_agent": "dlts_geo_app/0.1"}
+
+    # Make sure api key is set if service requires it
+    api_key = os.environ.get("MAPS_API_KEY")
+    if args.geocoder in ["google"]:
+        if api_key:
+            geocoder_args["api_key"] = api_key
+        else:
+            print(
+                "Must set envar MAPS_API_KEY for %s" % args.geocoder,
+                file=sys.stderr,
+            )
+            exit(1)
+
+    nsmap = {"m": "http://www.loc.gov/mods/v3"}
+    xpath = "//m:subject[@authority='lcsh']/m:geographic"
+
+    # Get geographic subject from MODS
+    mods = etree.parse(args.mods_file)
+    geo_subj = mods.xpath(xpath, namespaces=nsmap)
+    if geo_subj:
+        loc_name = geo_subj[0].text
     else:
-        print("Must set envar MAPS_API_KEY for %s" % args.geocoder,
-            file=sys.stderr)
+        print("No geographic subject found in MODS.", file=sys.stderr)
         exit(1)
 
-nsmap = {"m": "http://www.loc.gov/mods/v3"}
-xpath = "//m:subject[@authority='lcsh']/m:geographic"
+    logging.debug("Location: %s", loc_name)
 
-# Get geographic subject from MODS
-mods = etree.parse(args.mods_file)
-geo_subj = mods.xpath(xpath, namespaces=nsmap)
-if geo_subj:
-    loc_name = geo_subj[0].text
-else:
-    print("No geographic subject found in MODS.",
-        file=sys.stderr)
-    exit(1)
+    with open(locmap_file) as f:
+        locmap = yaml.full_load(f) or {}
 
-logging.debug("Location: %s", loc_name)
+    # list of sources (location map or geocoder service)
+    # use to lookup coordinates
+    sources = []
 
-with open(locmap_file) as f:
-    locmap = yaml.full_load(f) or {}
-
-# list of sources (location map or geocoder service)
-# use to lookup coordinates
-sources = []
-
-# Get coordinates from location map or by
-# querying geocoder service
-if loc_name in locmap:
-    val = locmap[loc_name]
-    logging.debug("locmap[%s]: %s", loc_name, val)
-    sources.append(locmap_file)
-    if isinstance(val, list):
-        lat, lng = val
+    # Get coordinates from location map or by
+    # querying geocoder service
+    if loc_name in locmap:
+        val = locmap[loc_name]
+        logging.debug("locmap[%s]: %s", loc_name, val)
+        sources.append(locmap_file)
+        if isinstance(val, list):
+            lat, lng = val
+        else:
+            lat, lng = lookup_coord(val, args.geocoder)
+            sources.append(args.geocoder)
     else:
-        lat, lng = lookup_coord(val, args.geocoder)
+        lat, lng = lookup_coord(loc_name, args.geocoder)
         sources.append(args.geocoder)
-else:
-    lat, lng = lookup_coord(loc_name, args.geocoder)
-    sources.append(args.geocoder)
 
-coord = {
-    "location":  loc_name,
-    "latitude":  lat,
-    "longitude": lng,
-    "sources":   sources,
-}
+    coord = {
+        "location": loc_name,
+        "latitude": lat,
+        "longitude": lng,
+        "sources": sources,
+    }
 
-logging.debug("Coordinates %s", coord)
+    logging.debug("Coordinates %s", coord)
 
-# Print coordinates to stdout or a file
-if not args.coord_file or args.coord_file == "-":
-    print(json.dumps(coord, indent=2, ensure_ascii=False))
-else:
-    with open(args.coord_file, "w", encoding='utf-8') as outfile:
-        json.dump(coord, outfile, indent=2, ensure_ascii=False)
+    # Print coordinates to stdout or a file
+    if not args.coord_file or args.coord_file == "-":
+        print(json.dumps(coord, indent=2, ensure_ascii=False))
+    else:
+        with open(args.coord_file, "w", encoding="utf-8") as outfile:
+            json.dump(coord, outfile, indent=2, ensure_ascii=False)
 
+
+if __name__ == "__main__":
+    main()
