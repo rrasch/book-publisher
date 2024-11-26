@@ -51,12 +51,18 @@ our $opt_f;  # force removal of output files
 our $opt_q;  # quiet mode
 our $opt_s;  # use sip directory
 our $opt_x;  # use xip directory
+our $opt_n;  # does nothing; option compatible with create-pdf.pl
 our $opt_o;  # does nothing; option compatible with create-pdf.pl
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
-getopts('fqsxor:t:');
+my @args = @ARGV;
+my $success = getopts('fqsxnor:t:');
+if (!$success)
+{
+	$log->logdie("Problem parsing command line args '@args'.");
+}
 
 # quiet mode
 if ($opt_q)
