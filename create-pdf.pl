@@ -27,6 +27,8 @@ use version;
 
 $SIG{HUP} = 'IGNORE';
 
+my $convert_bin = which("magick") || "/usr/bin/convert";
+
 my $log = MyLogger->get_logger();
 
 our $opt_f;  # force removal of output files
@@ -323,8 +325,8 @@ sub merge_pdfs
 sub is_page_white
 {
 	my $input_file = shift;
-	my $orig_dim = sys("convert $input_file -format '%g' info:");
-	my $crop_dim = sys("convert $input_file -bordercolor white "
+	my $orig_dim = sys("$convert_bin $input_file -format '%g' info:");
+	my $crop_dim = sys("$convert_bin $input_file -bordercolor white "
 		  . "-border 1x1 -format '%\@' info:");
 	$log->debug("Original dimensions: $orig_dim");
 	$log->debug("Crop dimensions: $crop_dim");
@@ -351,7 +353,7 @@ sub img2pdf
 		  . $cfg->{image}{resolution};
 
 		# Now convert downsampled to pdf
-		sys(    "convert $input_file "
+		sys(    "$convert_bin $input_file "
 			  . "-resize $img_dimensions "
 			  . "-background $cfg->{image}{bg_color} "
 			  . "-gravity center "
@@ -416,4 +418,3 @@ sub mk_lept_tmpdir
 		umask($umask);
 	}
 }
-

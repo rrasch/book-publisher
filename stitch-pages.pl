@@ -15,6 +15,7 @@ use Cwd qw(abs_path getcwd);
 use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
+use File::Which;
 use Getopt::Std;
 use Log::Log4perl::Level;
 use MyConfig;
@@ -25,10 +26,7 @@ use Util qw(getval sys);
 
 $SIG{HUP} = 'IGNORE';
 
-my $djatoka_dir = "/usr/local/adore-djatoka-1.1/bin";
-
-# Compression ratio for JPEG2000 files
-my $jp2_compression_ratio = 1 / 100;
+my $convert_bin = which("magick") || "/usr/bin/convert";
 
 my $convert_args = "-colorspace sRGB -type TrueColor";
 
@@ -180,17 +178,10 @@ for my $id (@ids)
 		}
 
 		# tile left and right page images horizontally
-		sys("convert $input_tifs[0]\[0] $input_tifs[1]\[0] "
+		sys("$convert_bin $input_tifs[0]\[0] $input_tifs[1]\[0] "
 			. "$convert_args $tmp_tif_file");
 
 		# compress the uncompressed tiled tif to jp2
-# 		sys("convert $tmp_tif_file -define jp2:rate="
-# 			. "$jp2_compression_ratio $tmp_jp2_file");
-# 		my $cwd = getcwd;
-# 		chdir($djatoka_dir)
-# 		  or $log->logdie("Can't chdir $djatoka_dir: $!");
-# 		sys("./compress.sh -i $tmp_tif_file -o $tmp_jp2_file");
-# 		chdir($cwd) or $log->logdie("Can't chdir $cwd: $!");
 		sys("kdu_compress -s $kdurc_file "
 			. "-i $tmp_tif_file -o $tmp_jp2_file");
 
@@ -213,4 +204,3 @@ sub stitch_basename
 	return "${book_id}_2up_"
 	  . join("_", map(Util::zeropad($_), $page_num_1, $page_num_2));
 }
-

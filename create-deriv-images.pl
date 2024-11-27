@@ -17,6 +17,7 @@ use Data::Dumper;
 use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
+use File::Which;
 use Getopt::Std;
 use Image::ExifTool qw(:Public);
 use Log::Log4perl::Level;
@@ -33,10 +34,12 @@ my $bin_dir = "/usr/local/adore-djatoka-1.1/bin";
 
 my $kdu_compress = "/usr/bin/kdu_compress";
 
+my $convert_bin = which("magick") || "/usr/bin/convert";
+
 my $log = MyLogger->get_logger();
 
 $SIG{__WARN__} = sub {
-# 	local $Log::Log4perl::caller_depth = $Log::Log4perl::caller_depth + 1;
+	local $Log::Log4perl::caller_depth = $Log::Log4perl::caller_depth + 1;
 	$log->logdie(@_);
 };
 
@@ -90,8 +93,6 @@ my $wip_dir =
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 
-# chdir($bin_dir) or $log->logdie("Can't chdir $bin_dir: $!");
-
 for my $id (@ids)
 {
 	$log->info("Processing $id");
@@ -100,7 +101,6 @@ for my $id (@ids)
 
 	my $resolution;
 
-# 	my @deriv_mkrs = sort(glob("$data_dir/$id*d.tif"));
 	my @deriv_mkrs = sort(glob("$data_dir/*d.tif"));
 
 	if (!@deriv_mkrs)
@@ -159,7 +159,6 @@ for my $id (@ids)
 		my $hires_file = "$aux_dir/${basename}hires.tif";
 		my $lores_file = "$aux_dir/${basename}lores.tif";
 
-# 		sys("exiftool $deriv_mkrs[$i]");
 		delete $exif_data[$i]->{PhotoshopThumbnail};
 		$log->debug(Dumper($exif_data[$i]));
 
@@ -196,10 +195,9 @@ sub convert
 	my $convert = "";
 	my $tmp_file = "$tmpdir/" . basename($output_file);
 	if ($output_file =~ /\.jp2$/) {
-# 		$convert = "./compress.sh -i $input_file -o";
 		$convert = "$kdu_compress -s $kdurc_file -i $input_file -o";
 	} else {
-		$convert = "convert $input_file\[0]";
+		$convert = "$convert_bin $input_file\[0]";
 		if ($output_file =~ /d\.tif$/) {
 			$convert .= " -strip";
 			$convert .= " -auto-orient";
@@ -226,4 +224,3 @@ sub convert
 	move($tmp_file, $output_file)
 	  or $log->logdie("can't move $tmp_file to $output_file: $!");
 }
-
