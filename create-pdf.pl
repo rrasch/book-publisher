@@ -218,7 +218,7 @@ for my $id (@ids)
 			my $mods = MODS->new($mods_file);
 			my @lang_codes = $mods->lang_code();
 			$log->debug("Language Codes = @lang_codes");
-			my $lang;
+			my $lang = "";
 			for my $code (@lang_codes)
 			{
 				unless ($code =~ /^(akk|arc)$/)
