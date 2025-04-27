@@ -1,7 +1,7 @@
 %bcond_with langpacks
 
 %define name	book-publisher
-%define version	1.0.7
+%define version	1.0.8
 %define repourl	https://github.com/rrasch/%{name}
 %define gitdate	%(date +"%Y%m%d")
 %define commit	%(get-commit-id.sh %{repourl})
