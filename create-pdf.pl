@@ -216,7 +216,17 @@ for my $id (@ids)
 			}
 			$log->debug("MODS file: $mods_file");
 			my $mods = MODS->new($mods_file);
-			my $lang = $mods->lang_code();
+			my @lang_codes = $mods->lang_code();
+			$log->debug("Language Codes = @lang_codes");
+			my $lang;
+			for my $code (@lang_codes)
+			{
+				unless ($code =~ /^(akk|arc)$/)
+				{
+					$lang = $code;
+					last;
+				}
+			}
 			$log->debug("Language = $lang");
 			if (!$lang)
 			{
