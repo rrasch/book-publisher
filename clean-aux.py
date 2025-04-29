@@ -4,6 +4,7 @@ from pprint import pformat
 import argparse
 import logging
 import os
+import time
 
 
 def validate_dirpath(dirpath: str) -> str:
@@ -50,14 +51,24 @@ def main():
         id_list = [entry.name for entry in scandir(wip_dir)]
     logging.debug("ids=%s", pformat(id_list))
 
+    now = time.time()
+    # Define the age threshold (in seconds)
+    one_day = 24 * 60 * 60
+
     for obj_id in id_list:
         aux_dir = os.path.join(wip_dir, obj_id, "aux")
         logging.debug("aux_dir=%s", aux_dir)
 
         for entry in scandir(aux_dir):
-            if not (args.exclude and entry.name.endswith(args.exclude)):
-                logging.debug("Deleting %s", entry.path)
-                os.remove(entry.path)
+            if args.exclude and entry.name.endswith(args.exclude):
+                continue
+
+            modified_time = os.path.getmtime(entry.path)
+            if now - modified_time > one_day:
+                continue
+
+            logging.debug("Deleting %s", entry.path)
+            os.remove(entry.path)
 
 
 if __name__ == "__main__":
