@@ -123,12 +123,14 @@ def main():
                     "pdf",
                 ])
 
-            pdf_files = sorted(glob(os.path.join(tmpdir, "*.pdf")))
+            pdf_files = sorted(glob(os.path.join(tmpdir, f"*_{name}.pdf")))
             tmp_file = os.path.join(tmpdir, f"tmp_{name}.pdf")
             do_cmd(["pdftk", *pdf_files, "cat", "output", tmp_file])
 
             out_file = f"{args.output_base}_{name}.pdf"
             shutil.move(tmp_file, out_file)
+
+            do_cmd(["pdfimages", "-list", out_file])
 
 
 if __name__ == "__main__":
