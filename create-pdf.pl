@@ -218,21 +218,24 @@ for my $id (@ids)
 			my $mods = MODS->new($mods_file);
 			my @lang_codes = $mods->lang_code();
 			$log->debug("Language Codes = @lang_codes");
+			if (@lang_codes > 1)
+			{
+				$log->warn("Multiple languages found for $id"
+					  . " in MODS file $mods_file");
+			}
 			my $lang = "";
 			for my $code (@lang_codes)
 			{
-				unless ($code =~ /^(akk|arc)$/)
+				if ($code =~ /^(akk|arc|egy)$/)
 				{
-					$lang = $code;
-					last;
+					$log->warn("Ignoring language '$1'");
+					next;
 				}
+				$lang = $code;
+				last;
 			}
 			$log->debug("Language = $lang");
-			if (!$lang)
-			{
-				$log->logdie("Can't find language in MODS file.");
-			}
-			$tess_lang = LangCode::term_code($lang) || $lang;
+			$tess_lang = LangCode::term_code($lang) || $lang if $lang;
 		}
 	}
 
@@ -264,6 +267,13 @@ for my $id (@ids)
 		{
 			$log->warn("pdf $files->{$profile}{output} already exists.");
 			next;
+		}
+
+		if ($opt_o && !$tess_lang)
+		{
+			$log->logdie("Language not set in MODS file"
+				  . " or tesseract trained data not available"
+				  . " for language akk, arc, or egy");
 		}
 
 		if ($opt_i && !$bg_color)
