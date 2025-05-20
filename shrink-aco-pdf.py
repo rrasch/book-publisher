@@ -7,6 +7,7 @@
 #
 # rasan@nyu.edu
 
+from pprint import pformat
 import argparse
 import functools
 import glob
@@ -32,7 +33,7 @@ def do_cmd(cmdlist, **kwargs):
         process = subprocess.run(cmd, check=True, **kwargs)
     except Exception as e:
         logging.exception(e)
-        exit(1)
+        sys.exit(1)
     return process
 
 
@@ -47,15 +48,22 @@ def get_img_info(pdf_file):
         universal_newlines=True,
     )
     output = ret.stdout.splitlines()
+    logging.debug("pdfimages output: %s", output)
+    if len(output) < 3:
+        return None
+
+    col_idx = {header: i for i, col in enumerate(output[0].split())}
+    logging.debug("column index: %s", pformat(col_idx))
+
     imgdata = output[2].split()
     ext = {"jpeg": "jpg", "jpx": "jp2"}
-    codec = imgdata[8]
-    dpi = round_down_to_even(imgdata[12])
+    codec = imgdata[col_idx["enc"]]
+    dpi = round_down_to_even(imgdata[col_idx["x-ppi"]])
     mask = False
     for line in output[2:]:
         logging.debug(line)
         imgdata = line.split()
-        if imgdata[2] == "mask":
+        if imgdata[col_idx["type"]] == "mask":
             mask = True
             break
     return {"ext": ext.get(codec), "dpi": dpi, "mask": mask}
@@ -85,7 +93,7 @@ def main():
             print(f"{prog} not in PATH", file=sys.stderr)
             missing += 1
     if missing > 0:
-        exit(1)
+        sys.exit(1)
 
     logging.basicConfig(
         format="%(asctime)s - shrink-aco-pdf - %(levelname)s - %(message)s",
@@ -138,12 +146,10 @@ def main():
     logging.debug("Output file: %s", args.output_file)
 
     if args.input_file == args.output_file:
-        print("Input file can't be the same as output file.", file=sys.stderr)
-        exit(1)
+        sys.exit("Input file can't be the same as output file.")
 
     if not args.force and os.path.exists(args.output_file):
-        print("Output file already exists.", file=sys.stderr)
-        exit(1)
+        sys.exit("Output file already exists.")
 
     input_dir, input_file = os.path.split(args.input_file)
     logging.debug("input dir: %s", input_dir)
@@ -183,6 +189,8 @@ def main():
             break
 
         imginfo = get_img_info(pdf_file)
+        if not imginfo:
+            sys.exit(f"Can't find any images in {pdf_file}")
         logging.debug("imginfo: %s", imginfo)
         if imginfo["ext"] is None or imginfo["mask"]:
             img_ext = "png"
@@ -270,7 +278,7 @@ def main():
                 new_jpg_file,
                 new_jpg_dpi,
             )
-            exit(1)
+            sys.exit(1)
 
         # # delete images extracted from pdfimages
         # logging.debug("Removing directory %s", pdfimgs_dir)
