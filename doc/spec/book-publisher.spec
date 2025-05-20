@@ -1,7 +1,7 @@
 %bcond_with langpacks
 
 %define name	book-publisher
-%define version	1.0.8
+%define version	1.0.9
 %define repourl	https://github.com/rrasch/%{name}
 %define gitdate	%(date +"%Y%m%d")
 %define commit	%(get-commit-id.sh %{repourl})
@@ -52,12 +52,16 @@ Requires:	poppler-utils >= 0.87.0
 Requires:	qpdf
 Requires:	tesseract
 Requires:	tesseract-osd
+Requires:	tesseract-langpack-akk
 Requires:	tesseract-langpack-ara
 Requires:	tesseract-langpack-deu
 Requires:	tesseract-langpack-fra
+Requires:	tesseract-langpack-grc
 Requires:	tesseract-langpack-ita
 Requires:	tesseract-langpack-kat
 Requires:	tesseract-langpack-kat_old
+Requires:	tesseract-langpack-nld
+Requires:	tesseract-langpack-spa
 %if %{with langpacks}
 Requires:	tesseract-langpack-afr
 Requires:	tesseract-langpack-amh
@@ -260,4 +264,3 @@ rm -rf %{buildroot}
 %{dlibdir}/lib
 
 %changelog
-
