@@ -58,6 +58,7 @@ our $opt_n;  # does nothing; option compatible with create-pdf.pl
 our $opt_o;  # does nothing; option compatible with create-pdf.pl
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
+our $opt_m;  # flag to only create new sanitized dmakers
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
 my @args = @ARGV;
@@ -175,11 +176,17 @@ for my $id (@ids)
 			depth      => $new_depth,
 		};
 
+		# create new dmaker
 		convert($deriv_mkrs[$i], $tif_file, $params);
 
-		for my $img_file ($jp2_file, $jpg_file, $hires_file, $lores_file)
+		# create derivates from dmaker above
+		if (!$opt_m)
 		{
-			convert($tif_file, $img_file, $params);
+			for my $img_file ($jp2_file, $jpg_file, $hires_file,
+				$lores_file)
+			{
+				convert($tif_file, $img_file, $params);
+			}
 		}
 	}
 }
