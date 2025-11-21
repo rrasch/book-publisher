@@ -124,10 +124,12 @@ def main():
             )
             sys.exit(1)
 
+        output_base = aux_dir / book_id
+
         generate_pdfs(
-            book_id,
             dmaker_imgs,
             hocr_files,
+            output_base,
             max_workers=1,
             overwrite=args.overwrite,
         )
