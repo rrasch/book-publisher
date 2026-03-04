@@ -14,7 +14,7 @@ use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
 use File::Which;
-use Getopt::Std;
+use Getopt::Long;
 use LangCode;
 use Log::Log4perl::Level;
 use MODS;
@@ -46,9 +46,28 @@ our $opt_b;  # background color to fill pdf pages
 our $opt_m;  # tesseract ocr engine mode
 our $opt_l;  # tesseract language
 
-$Getopt::Std::STANDARD_HELP_VERSION = 1;
 my @args = @ARGV;
-my $success = getopts('fqioesxnr:t:c:b:m:l:');
+
+Getopt::Long::Configure("bundling");
+
+my $success = GetOptions(
+	'f|force'         => \$opt_f,
+	'q|quiet'         => \$opt_q,
+	'i|imagemagick'   => \$opt_i,
+	'o|ocr'           => \$opt_o,
+	'e|exactimage'    => \$opt_e,
+	's|sip'           => \$opt_s,
+	'x|xip'           => \$opt_x,
+	'n|no-mets'       => \$opt_n,
+	'r|rstar'         => \$opt_r,
+	't|tmp=s'         => \$opt_t,
+	'c|compression=s' => \$opt_c,
+	'b|background=s'  => \$opt_b,
+	'm|oem=s'         => \$opt_m,
+	'l|language=s'    => \$opt_l,
+	'h|help'          => sub { print_usage(); exit(0); },
+);
+
 if (!$success)
 {
 	$log->logdie("Problem parsing command line args '@args'.");
@@ -437,4 +456,28 @@ sub mk_lept_tmpdir
 		  or $log->logdie("Can't mkdir $lept_tmpdir: $!");
 		umask($umask);
 	}
+}
+
+
+sub print_usage {
+    print <<"END_USAGE";
+Usage: $0 [OPTIONS] [BOOK_ID]...
+
+Options:
+  -f, --force               Force removal of output files.
+  -q, --quiet               Quiet logging.
+  -i, --imagemagick         Generate PDF using ImageMagick.
+  -o, --ocr                 Generate PDF with OCR.
+  -e, --exactimage          Generate PDF with ExactImage adding previously created hOCR.
+  -s, --sip                 Use sip directory.
+  -x, --xip                 Use xip directory.
+  -n, --no-mets             Do not use METS; use filenames instead.
+  -r, --rstar               Use rstar directory.
+  -t, --tmp <dir>           Base directory for temporary files.
+  -c, --compression <lvl>   Compression level(s) for PDF generation.
+  -b, --background <color>  Background color to fill PDF pages.
+  -m, --oem <mode>          Tesseract OCR engine mode.
+  -l, --language <lang>     Tesseract language (e.g., eng).
+  -h, --help                Show this help message and exit.
+END_USAGE
 }
