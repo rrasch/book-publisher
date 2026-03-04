@@ -10,6 +10,7 @@ use lib "$FindBin::Bin/lib";
 use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
+use Data::Dumper;
 use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
@@ -39,6 +40,8 @@ our $opt_e;  # generate pdf with ExactImage adding previously created hocr
 our $opt_s;  # use sip directory
 our $opt_x;  # use xip directory
 our $opt_n;  # don't use METS to get file structure; use filenames instead
+our $hires;  # only generate high resolution pdf
+our $lores;  # only generate low resolution pdf
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
 our $opt_c;  # compression levels
@@ -48,7 +51,10 @@ our $opt_l;  # tesseract language
 
 my @args = @ARGV;
 
-Getopt::Long::Configure("bundling");
+Getopt::Long::Configure(
+	"bundling",         # allow short-option bundling like -qi
+	"no_ignore_case"    # make option names case-sensitive
+);
 
 my $success = GetOptions(
 	'f|force'         => \$opt_f,
@@ -59,7 +65,9 @@ my $success = GetOptions(
 	's|sip'           => \$opt_s,
 	'x|xip'           => \$opt_x,
 	'n|no-mets'       => \$opt_n,
-	'r|rstar'         => \$opt_r,
+	'H|hires'         => \$hires,
+	'L|lores'         => \$lores,
+	'r|rstar=s'       => \$opt_r,
 	't|tmp=s'         => \$opt_t,
 	'c|compression=s' => \$opt_c,
 	'b|background=s'  => \$opt_b,
@@ -175,6 +183,16 @@ my $img_cfg = {
 		jpeg_quality => $lo_level,
 	},
 };
+
+# Reduce image config to just high or low res
+# profile if either set
+if ($hires) {
+	$img_cfg = { hi => $img_cfg->{hi} };
+} elsif ($lores) {
+	$img_cfg = { lo => $img_cfg->{lo} };
+}
+
+$log->debug("Image config: ", Dumper($img_cfg));
 
 my @img_profiles = sort keys %$img_cfg;
 
@@ -472,7 +490,9 @@ Options:
   -s, --sip                 Use sip directory.
   -x, --xip                 Use xip directory.
   -n, --no-mets             Do not use METS; use filenames instead.
-  -r, --rstar               Use rstar directory.
+  -H, --hires               Only generate high resolution pdf
+  -L, --lores               Only generate low resolution pdf
+  -r, --rstar <dir>         Rstar directory.
   -t, --tmp <dir>           Base directory for temporary files.
   -c, --compression <lvl>   Compression level(s) for PDF generation.
   -b, --background <color>  Background color to fill PDF pages.
