@@ -101,6 +101,11 @@ if (defined($opt_m) && $opt_m !~ /^[0-3]$/)
 		  . "please enter a number between 0-3.");
 }
 
+if ($hires && $lores)
+{
+	$log->logdie("Can't set both -H/--hires and --L/--lores");
+}
+
 # quiet mode
 if ($opt_q)
 {
