@@ -52,11 +52,12 @@ our $opt_l;  # tesseract language
 my @args = @ARGV;
 
 Getopt::Long::Configure(
-	"bundling",         # allow short-option bundling like -qi
-	"no_ignore_case"    # make option names case-sensitive
+	"bundling",          # allow short-option bundling like -qi
+	"no_auto_abbrev",    # require full long option names
+	"no_ignore_case"     # make option names case-sensitive
 );
 
-my $success = GetOptions(
+GetOptions(
 	'f|force'         => \$opt_f,
 	'q|quiet'         => \$opt_q,
 	'i|imagemagick'   => \$opt_i,
@@ -74,13 +75,8 @@ my $success = GetOptions(
 	'm|oem=s'         => \$opt_m,
 	'l|language=s'    => \$opt_l,
 	'h|help'          => sub { print_usage(); exit(0); },
-);
-
-if (!$success)
-{
-	$log->logdie("Problem parsing command line args '@args'.");
-}
-
+  )
+  or do { print_usage(); exit(1); };
 
 my $num_pdf_opts = 0;
 for my $opt ($opt_i, $opt_o, $opt_e)
@@ -477,8 +473,9 @@ sub mk_lept_tmpdir
 }
 
 
-sub print_usage {
-    print <<"END_USAGE";
+sub print_usage
+{
+	print STDERR <<"END_USAGE";
 Usage: $0 [OPTIONS] [BOOK_ID]...
 
 Options:
