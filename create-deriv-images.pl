@@ -85,6 +85,11 @@ $SIG{__WARN__} = sub {
 	$log->logdie(@_);
 };
 
+if ($opt_m && $opt_p)
+{
+	$log->logdie("Can't set both -m/--dmakers and --p/--pdf-tifs");
+}
+
 # quiet mode
 if ($opt_q)
 {
