@@ -1,64 +1,60 @@
-# $Id: kdurc 14646 2015-04-26 15:20:43Z rr102 $
-#
-# Command line switch file for kdu_compress based on
-# djatoka.properties.
+# =========================================================
+# kdurc file for high-quality IIIF JP2 images (Cantaloupe)
+# =========================================================
 
-##
-# rate
-# Default: rate=1.5
+# Input and output files are specified on the command line:
+# kdu_compress -i input.tif -o output.jp2 -opts kdurc_file
 
--rate 1.2
+# -----------------------------
+# Target compression rate
+# -----------------------------
+# Controls bits per pixel (bpp). For scanned books,
+# 1.5 bpp is a good balance of quality and file size.
+-rate 1.5
 
-# ##
-# # Slope 
-# # Default: slope=51651,51337,51186,50804,50548,50232
-# 
-# -slope 51651,51337,51186,50804,50548,50232
-# 
-# ##
-# # Clayers 
-# # Default: Clayers=6
-# 
-# Clayers=6
-# 
-# ##
-# # Clevels
-# # Default: Clevels=0
-# 
-# Clevels=0
-# 
-# ##
-# # Creversible
-# # Default: Creversible=yes
-# 
-# Creversible=yes
-# 
-# ##
-# # Cprecincts
-# # Default: 		Cprecincts={256,256},{256,256},{128,128}
-# 
-# Cprecincts={256,256},{256,256},{128,128}
-# 
-# ##
-# # Corder
-# # Default: 		Corder=RPCL
-# 
-# Corder=RPCL
-# 
-# ##
-# # ORGgen_plt
-# # Default: 		ORGgen_plt=yes
-# 
-# ORGgen_plt=yes
-# 
-# ##
-# # ORGtparts
-# # Default: 		ORGtparts=R
-# 
-# ORGtparts=R
-# 
-# ##
-# # Cblk
-# # Default: 		Cblk={32,32}
-# 
-# Cblk={32,32}
+# -----------------------------
+# Disable visual weighting
+# -----------------------------
+# Minimizes Mean Squared Error (MSE) instead of using
+# CSF visual weighting. Recommended for zoomable images
+# so small text and fine details are preserved.
+-no_weights
+
+# -----------------------------
+# Wavelet decomposition levels
+# -----------------------------
+# Number of resolution levels. Determines how much detail
+# is available for zooming. 6 levels works well for typical
+# book scans; increase for very large pages.
+Clevels=6
+
+# -----------------------------
+# Code-block size
+# -----------------------------
+# Each wavelet block. Smaller blocks (64x64) decode faster
+# for individual tiles. Can also use 128x128 for slightly
+# better compression efficiency.
+Cblk={64,64}
+
+# -----------------------------
+# Packet markers for resilience
+# -----------------------------
+# SOP (Start of Packet) and EPH (End of Packet Headers) improve
+# codestream robustness and streaming/partial decoding.
+Cuse_sop=yes
+Cuse_eph=yes
+
+# -----------------------------
+# Compression type
+# -----------------------------
+# Irreversible (lossy) compression is sufficient for most
+# book scans and produces smaller files. Set to 'yes' only
+# if lossless is required.
+Creversible=no
+
+# -----------------------------
+# Number of layers
+# -----------------------------
+# Only one layer is needed. Multi-layer progressive JP2 is
+# unnecessary for IIIF servers like Cantaloupe.
+Clayers=1
