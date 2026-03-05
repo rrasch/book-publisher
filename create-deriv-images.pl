@@ -13,12 +13,12 @@ use lib "/content/prod/rstar/etc/content-publishing/book";
 use strict;
 use warnings;
 use Cwd qw(abs_path);
-use Data::Dumper;
+use Data::Dump qw(dump);
 use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
 use File::Which;
-use Getopt::Std;
+use Getopt::Long;
 use Image::ExifTool qw(:Public);
 use Log::Log4perl::Level;
 use MyConfig;
@@ -38,11 +38,6 @@ my $convert_bin = which("magick") || "/usr/bin/convert";
 
 my $log = MyLogger->get_logger();
 
-$SIG{__WARN__} = sub {
-	local $Log::Log4perl::caller_depth = $Log::Log4perl::caller_depth + 1;
-	$log->logdie(@_);
-};
-
 my $host = hostname();
 
 # find directory where this script resides
@@ -57,16 +52,38 @@ our $opt_x;  # use xip directory
 our $opt_m;  # flag to only create new sanitized dmakers
 our $opt_n;  # does nothing; option compatible with create-pdf.pl
 our $opt_o;  # does nothing; option compatible with create-pdf.pl
+our $opt_p;  # only generate tifs files used make pdfs
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
 
-$Getopt::Std::STANDARD_HELP_VERSION = 1;
 my @args = @ARGV;
-my $success = getopts('fqsxmnor:t:');
-if (!$success)
-{
-	$log->logdie("Problem parsing command line args '@args'.");
-}
+
+Getopt::Long::Configure(
+	"bundling",          # allow short-option bundling like -qi
+	"no_auto_abbrev",    # require full long option names
+	"no_ignore_case",    # make option names case-sensitive
+);
+
+GetOptions(
+	'f|force'    => \$opt_f,
+	'q|quiet'    => \$opt_q,
+	's|sip'      => \$opt_s,
+	'x|xip'      => \$opt_x,
+	'm|dmakers'  => \$opt_m,
+	'p|pdf-tifs' => \$opt_p,
+	'n|no-mets'  => \$opt_n,
+	'o|ocr'      => \$opt_o,
+	'r|rstar=s'  => \$opt_r,
+	't|tmp=s'    => \$opt_t,
+	'h|help'     => sub { print_usage(); exit(0); },
+  )
+  or do { print_usage(); exit(1); };
+
+# Die on warnings
+$SIG{__WARN__} = sub {
+	local $Log::Log4perl::caller_depth = $Log::Log4perl::caller_depth + 1;
+	$log->logdie(@_);
+};
 
 # quiet mode
 if ($opt_q)
@@ -100,16 +117,7 @@ for my $id (@ids)
 	my $data_dir = "$wip_dir/$id/data";
 	my $aux_dir  = "$wip_dir/$id/aux";
 
-	my $resolution;
-
 	my @deriv_mkrs = sort(glob("$data_dir/*d.tif"));
-
-	if (!@deriv_mkrs)
-	{
-		$log->debug("No TIFF images, looking for JPEG 2000 files.");
-		@deriv_mkrs = grep(!/_2up_/, sort(glob("$data_dir/*o.jp2")));
-		$resolution = 400;
-	}
 
 	if (!@deriv_mkrs)
 	{
@@ -136,15 +144,13 @@ for my $id (@ids)
 		$stat->add_data($$exif{XResolution});
 	}
 
-	if (!$resolution)
-	{
-		if ($stat->count() == 1) {
-			($resolution) = $stat->get_data();
-		} elsif (!defined($stat->mode())) {
-			$resolution = $stat->min();
-		} else {
-			$resolution = $stat->mode();
-		}
+	my $resolution;
+	if ($stat->count() == 1) {
+		($resolution) = $stat->get_data();
+	} elsif (!defined($stat->mode())) {
+		$resolution = $stat->min();
+	} else {
+		$resolution = $stat->mode();
 	}
 
 	$log->info("Setting resolution to $resolution.");
@@ -160,8 +166,7 @@ for my $id (@ids)
 		my $hires_file = "$aux_dir/${basename}hires.tif";
 		my $lores_file = "$aux_dir/${basename}lores.tif";
 
-		delete $exif_data[$i]->{PhotoshopThumbnail};
-		$log->debug(Dumper($exif_data[$i]));
+		$log->debug(dump($exif_data[$i]));
 
 		my $orig_depth = ${$exif_data[$i]}{BitsPerSample}
 		  || ${$exif_data[$i]}{BitsPerComponent};
@@ -179,14 +184,18 @@ for my $id (@ids)
 		# create new dmaker
 		convert($deriv_mkrs[$i], $tif_file, $params);
 
-		# create derivates from dmaker above
-		if (!$opt_m)
+		# skip if we are only creating new dmakers
+		next if $opt_m;
+
+		my @derivs = ($hires_file, $lores_file);
+		unless ($opt_p)
 		{
-			for my $img_file ($jp2_file, $jpg_file, $hires_file,
-				$lores_file)
-			{
-				convert($tif_file, $img_file, $params);
-			}
+			unshift(@derivs, $jp2_file, $jpg_file);
+		}
+
+		for my $img_file (@derivs)
+		{
+			convert($tif_file, $img_file, $params);
 		}
 	}
 }
@@ -230,4 +239,25 @@ sub convert
 	$log->info("Moving $host:$tmp_file to $host:$output_file");
 	move($tmp_file, $output_file)
 	  or $log->logdie("can't move $tmp_file to $output_file: $!");
+}
+
+
+sub print_usage
+{
+	print STDERR <<"END_USAGE";
+Usage: $0 [options]
+
+Options:
+  -f, --force          Force removal of output files
+  -q, --quiet          Quiet mode
+  -s, --sip            Use sip directory
+  -x, --xip            Use xip directory
+  -m, --dmakers        Only create new sanitized dmakers
+  -p  --pdf-tifs       Only generate tifs files used make pdfs
+  -n, --no-mets        Does nothing; option compatible with create-pdf.pl
+  -o, --ocr            Does nothing; option compatible with create-pdf.pl
+  -r, --rstar <dir>    Rstar directory
+  -t, --tmp <dir>      Temporary directory
+  -h, --help           Show this help message and exit
+END_USAGE
 }
