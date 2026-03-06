@@ -52,7 +52,8 @@ our $opt_x;  # use xip directory
 our $opt_m;  # flag to only create new sanitized dmakers
 our $opt_n;  # does nothing; option compatible with create-pdf.pl
 our $opt_o;  # does nothing; option compatible with create-pdf.pl
-our $opt_p;  # only generate tifs files used make pdfs
+our $hires;  # only generate high res tiffs used to make pdfs
+our $lores;  # only generate low res tiffs used to make pdfs
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
 
@@ -70,7 +71,8 @@ GetOptions(
 	's|sip'      => \$opt_s,
 	'x|xip'      => \$opt_x,
 	'm|dmakers'  => \$opt_m,
-	'p|pdf-tifs' => \$opt_p,
+	'H|hires'    => \$hires,
+	'L|lores'    => \$lores,
 	'n|no-mets'  => \$opt_n,
 	'o|ocr'      => \$opt_o,
 	'r|rstar=s'  => \$opt_r,
@@ -85,9 +87,12 @@ $SIG{__WARN__} = sub {
 	$log->logdie(@_);
 };
 
-if ($opt_m && $opt_p)
+my $count = grep { $_ } ($opt_m, $hires, $lores);
+if ($count > 1)
 {
-	$log->logdie("Can't set both -m/--dmakers and --p/--pdf-tifs");
+	$log->logdie(
+		"You can only set one of -m/--dmakers, -H/--hires, or -L/--lores"
+	);
 }
 
 # quiet mode
@@ -167,7 +172,6 @@ for my $id (@ids)
 
 		my $tif_file   = "$aux_dir/${basename}d.tif";
 		my $jp2_file   = "$aux_dir/${basename}d.jp2";
-		my $jpg_file   = "$aux_dir/${basename}s.jpg";
 		my $hires_file = "$aux_dir/${basename}hires.tif";
 		my $lores_file = "$aux_dir/${basename}lores.tif";
 
@@ -189,13 +193,15 @@ for my $id (@ids)
 		# create new dmaker
 		convert($deriv_mkrs[$i], $tif_file, $params);
 
-		# skip if we are only creating new dmakers
-		next if $opt_m;
-
-		my @derivs = ($hires_file, $lores_file);
-		unless ($opt_p)
-		{
-			unshift(@derivs, $jp2_file, $jpg_file);
+		my @derivs;
+		if ($opt_m) {
+			@derivs = ();
+		} elsif ($hires) {
+			@derivs = ($hires_file);
+		} elsif ($lores) {
+			@derivs = ($lores_file);
+		} else {
+			@derivs = ($jp2_file, $hires_file, $lores_file);
 		}
 
 		for my $img_file (@derivs)
@@ -257,8 +263,9 @@ Options:
   -q, --quiet          Quiet mode
   -s, --sip            Use sip directory
   -x, --xip            Use xip directory
-  -m, --dmakers        Only create new sanitized dmakers
-  -p  --pdf-tifs       Only generate tifs files used make pdfs
+  -m, --dmakers        Only generate new sanitized dmakers
+  -H, --hires          Only generate high res tiffs used to make pdfs
+  -L, --lores          Only generate low res tiffs used to make pdfs
   -n, --no-mets        Does nothing; option compatible with create-pdf.pl
   -o, --ocr            Does nothing; option compatible with create-pdf.pl
   -r, --rstar <dir>    Rstar directory
