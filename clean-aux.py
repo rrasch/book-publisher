@@ -127,10 +127,17 @@ def main():
         help="Show what would be deleted without removing any files",
     )
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
 
+    script_name = os.path.basename(os.path.realpath(__file__))
     level = logging.WARNING if args.quiet else logging.DEBUG
-    logging.basicConfig(format="%(levelname)s: %(message)s", level=level)
+    logging.basicConfig(
+        level=level,
+        format=f"[{script_name}] %(levelname)s: %(message)s",
+    )
+
+    if unknown:
+        logging.warning("Unknown args: %s", unknown)
 
     se_dir = os.path.join(args.rstar_dir, "wip", "se")
     logging.debug("se_dir=%s", se_dir)
