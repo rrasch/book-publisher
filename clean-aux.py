@@ -133,6 +133,7 @@ def main():
     parser.add_argument(
         "-f",
         "--force",
+        "--overwrite",
         action="store_true",
         default=argparse.SUPPRESS,
         help=argparse.SUPPRESS,
