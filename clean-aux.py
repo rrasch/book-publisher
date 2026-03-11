@@ -127,7 +127,18 @@ def main():
         help="Show what would be deleted without removing any files",
     )
 
-    args, unknown = parser.parse_known_args()
+    # Compatibility option: other scripts in the pipeline use this flag.
+    # It is accepted here to allow a common argument set in the task queue,
+    # but this script does not use the value.
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help=argparse.SUPPRESS,
+    )
+
+    args = parser.parse_args()
 
     script_name = os.path.basename(os.path.realpath(__file__))
     level = logging.WARNING if args.quiet else logging.DEBUG
@@ -135,9 +146,6 @@ def main():
         level=level,
         format=f"[{script_name}] %(levelname)s: %(message)s",
     )
-
-    if unknown:
-        logging.warning("Unknown args: %s", unknown)
 
     se_dir = os.path.join(args.rstar_dir, "wip", "se")
     logging.debug("se_dir=%s", se_dir)
