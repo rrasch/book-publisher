@@ -1,30 +1,22 @@
-%define major_version	v6_4_1
-%define minor_version	01187N
-%define real_version	%{major_version}-%{minor_version}
+%{!?license_num:%{error:license_num macro must be defined}}
 
-%ifarch x86_64
-%define linux_version	Linux-x86-64-gcc
-%else
-%define linux_version	Linux-x86-32-gcc
-%endif
+%define version         8.5
+%define version_und     %(echo %{version} | tr . _)
+%define source_version  v%{version_und}-%{license_num}
+%define linux_version   Linux-x86-64-gcc
+%define java_home       /usr/lib/jvm/java-latest-openjdk
 
-%define _buildshell     /bin/bash
-
-Name:		kakadu
-Version:	6.4.1
-Release:	1%{?dist}
-Summary:	JPEG2000 toolkit
-Group:		System Environment/Libraries
-License:	Kakadu Non-Commercial
-URL:		http://kakadusoftware.com
-Source0:	%{real_version}.zip
-Patch0:		kakadu-tiff.patch
-Patch1:		kakadu-bool.patch
-BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-BuildRequires:	libtiff-devel
-%if 0%{?fedora} >= 35 || 0%{?rhel} >= 8
-BuildRequires:	java-latest-openjdk-devel
-%endif
+Name:           kakadu
+Version:        %{version}
+Release:        1.dlts%{?dist}
+Summary:        JPEG2000 toolkit
+Group:          System Environment/Libraries
+License:        Kakadu Non-Commercial
+URL:            http://kakadusoftware.com
+Source0:        %{source_version}.zip
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildRequires:  libtiff-devel
+BuildRequires:  java-latest-openjdk-devel
 
 
 %description
@@ -63,32 +55,25 @@ to encourage the widespread adoption of JPEG2000.
 
 
 %prep
-%setup -q -c
-%patch0
-%patch1
+%setup -n %{source_version}
 
 
 %build
-%if 0%{?fedora} >= 35 || 0%{?rhel} >= 8
-export JAVA_HOME=/usr/lib/jvm/java-openjdk
-%else
-export JAVA_HOME=/usr/java/latest
-%endif
+export JAVA_HOME=%{java_home}
 export PATH=$JAVA_HOME/bin:$PATH
 
-pushd %{real_version}/make
+pushd make
 make -f Makefile-%{linux_version}
 popd
 
-pushd java/kdu_jni
+pushd ../java/kdu_jni
 javac *.java
 popd
-
 
 %install
 rm -rf $RPM_BUILD_ROOT
 
-export JAVA_HOME=/usr/java/latest
+export JAVA_HOME=%{java_home}
 export PATH=$JAVA_HOME/bin:$PATH
 
 mkdir -p %{buildroot}%{_bindir}
@@ -96,17 +81,18 @@ mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_includedir}/%{name}
 mkdir -p %{buildroot}%{_datadir}/java
 
-pushd %{real_version}
 install -m 0755 bin/%{linux_version}/*    %{buildroot}%{_bindir}
 install -m 0755 lib/%{linux_version}/*.so %{buildroot}%{_libdir}
 install -m 0644 lib/%{linux_version}/*.a  %{buildroot}%{_libdir}
 install -m 0644 managed/all_includes/*.h  %{buildroot}%{_includedir}/%{name}
-popd
 
-pushd java
+pushd ../java
 jar cvf %{buildroot}%{_datadir}/java/kakadu.jar kdu_jni
 popd
 
+chmod 0644 *.txt
+find documentation -type f -exec chmod 644 {} \;
+find managed/*samples -type f -exec chmod 644 {} \;
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -119,8 +105,9 @@ rm -rf $RPM_BUILD_ROOT
 
 %files 
 %defattr(-,root,root,-)
-%doc %{real_version}/*.txt %{real_version}/documentation/*
-%doc %{real_version}/managed/*samples
+%doc *.txt
+%doc documentation
+%doc managed/*samples
 %{_bindir}/*
 %{_libdir}/*
 %{_includedir}/*
@@ -128,6 +115,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Mar 12 2026 Rasan Rasch <rasan@nyu.edu> - 8.5-1
+- Update to 8.5
+
 * Mon Jun 06 2011 Rasan Rasch <rasan@nyu.edu> - 6.4.1-1
 - new build
-
