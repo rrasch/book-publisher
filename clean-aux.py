@@ -67,6 +67,10 @@ def purge(
         return
 
     for entry in scan_dir(aux_dir):
+        if entry.is_dir():
+            logging.warning("Skipping directory %s", entry.path)
+            continue
+
         if exclude and entry.name.endswith(exclude):
             logging.debug("Excluding %s", entry.path)
             continue
@@ -154,7 +158,7 @@ def main():
     if args.id:
         id_list = args.id
     else:
-        id_list = [entry.name for entry in scan_dir(se_dir)]
+        id_list = [entry.name for entry in scan_dir(se_dir) if entry.is_dir()]
     logging.debug("ids=%s", pformat(id_list))
 
     now = time.time()
