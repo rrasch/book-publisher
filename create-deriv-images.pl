@@ -30,8 +30,6 @@ use Util;
 
 $SIG{HUP} = 'IGNORE';
 
-my $bin_dir = "/usr/local/adore-djatoka-1.1/bin";
-
 my $kdu_compress = "/usr/bin/kdu_compress";
 
 my $convert_bin = which("magick") || "/usr/bin/convert";
