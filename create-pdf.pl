@@ -78,6 +78,13 @@ GetOptions(
   )
   or do { print_usage(); exit(1); };
 
+unless ($opt_r && -d $opt_r)
+{
+	$log->logdie(
+		"You must specify -r/--rstar and it must be a valid directory"
+	);
+}
+
 my $num_pdf_opts = 0;
 for my $opt ($opt_i, $opt_o, $opt_e)
 {
@@ -131,8 +138,7 @@ if ($opt_s) {
 	$subdir = "wip";
 }
 
-my $wip_dir =
-  ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/$subdir/se";
+my $wip_dir = "$opt_r/$subdir/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 

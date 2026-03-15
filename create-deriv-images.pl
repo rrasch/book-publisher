@@ -85,6 +85,13 @@ $SIG{__WARN__} = sub {
 	$log->logdie(@_);
 };
 
+unless ($opt_r && -d $opt_r)
+{
+	$log->logdie(
+		"You must specify -r/--rstar and it must be a valid directory"
+	);
+}
+
 my $count = grep { $_ } ($opt_m, $hires, $lores);
 if ($count > 1)
 {
@@ -114,8 +121,7 @@ if ($opt_s) {
 	$subdir = "wip";
 }
 
-my $wip_dir =
-  ($opt_r || $ENV{RSTAR_DIR} || config('rstar_dir')) . "/$subdir/se";
+my $wip_dir = "$opt_r/$subdir/se";
 
 my @ids = @ARGV ? @ARGV : Util::get_dir_contents($wip_dir);
 
