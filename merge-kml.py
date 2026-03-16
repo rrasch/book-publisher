@@ -2,7 +2,7 @@
 #
 # Merge KML files
 #
-# Modifed version of this stackoverflow answer:
+# Modified version of this stackoverflow answer:
 # https://stackoverflow.com/a/11315257/13631441
 
 from xml.etree import ElementTree as ET

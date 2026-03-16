@@ -93,7 +93,7 @@ for my $opt ($opt_i, $opt_o, $opt_e)
 
 if ($num_pdf_opts > 1)
 {
-	$log->logdie("You can only specifiy one of -i, -o, or -e.");
+	$log->logdie("You can only specify one of -i, -o, or -e.");
 }
 
 if ($opt_m && !$opt_o)

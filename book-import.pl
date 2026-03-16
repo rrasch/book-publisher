@@ -98,7 +98,7 @@ for my $ie_id (@ie_ids)
 
 	my $ie_mets = IntellectualEntityMETS->new($ie_mets_file);
 	
-	# Get listing of source entitites in IE mets file
+	# Get listing of source entities in IE mets file
 	my @source_entities = $ie_mets->get_source_entities();
 
 	# If there are multiple source entities, that means this is a

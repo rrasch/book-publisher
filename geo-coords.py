@@ -56,7 +56,7 @@ def main():
         "coord_file",
         metavar="COORD_FILE",
         nargs="?",
-        help="Ouptput JSON coordinates file",
+        help="Output JSON coordinates file",
     )
     parser.add_argument(
         "-d", "--debug", help="Enable debugging messages", action="store_true"
