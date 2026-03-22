@@ -9,6 +9,7 @@
 %define repourl	https://github.com/rrasch/%{name}
 %define dlibdir	/usr/local/dlib/%{name}
 %define liburl	https://github.com/rrasch/libpublishing
+%define lib_tag	v1.0.0
 
 %if %{undefined __perl_provides}
 %define __perl_provides /usr/lib/rpm/perl.prov
@@ -182,9 +183,19 @@ Requires:	tesseract-langpack-yid
 rm -rf %{name}
 # svn export %{url}/tags/%{version}  %{name}
 # svn export %{url}/trunk %{name}
+
 git clone %{url}.git %{name}
 cd %{name}
+
+%if "%{git_tag}" != "v0.0.0"
+git -c advice.detachedHead=false checkout %{git_tag}
+%endif
+
 git clone %{liburl}.git lib
+pushd lib
+git -c advice.detachedHead=false checkout %{lib_tag}
+popd
+
 rm -rf .git lib/.git
 
 EXCLUDE_MODULES=`find lib -name '*.pm' \
