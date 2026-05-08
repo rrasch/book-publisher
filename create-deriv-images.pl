@@ -55,7 +55,7 @@ our $lores;  # only generate low res tiffs used to make pdfs
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
 
-our $tile_size = 32;  # tile size in tiff for cantaloupe img server
+our $tile_size = 256;  # tile size in tiff for cantaloupe img server
 
 my @args = @ARGV;
 
