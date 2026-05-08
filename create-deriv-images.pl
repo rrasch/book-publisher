@@ -55,6 +55,8 @@ our $lores;  # only generate low res tiffs used to make pdfs
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory
 
+our $tile_size = 32;  # tile size in tiff for cantaloupe img server
+
 my @args = @ARGV;
 
 Getopt::Long::Configure(
@@ -75,6 +77,7 @@ GetOptions(
 	'o|ocr'      => \$opt_o,
 	'r|rstar=s'  => \$opt_r,
 	't|tmp=s'    => \$opt_t,
+	'T|tile=s'   => \$tile_size,
 	'h|help'     => sub { print_usage(); exit(0); },
   )
   or do { print_usage(); exit(1); };
@@ -98,6 +101,11 @@ if ($count > 1)
 	$log->logdie(
 		"You can only set one of -m/--dmakers, -H/--hires, or -L/--lores"
 	);
+}
+
+unless ($tile_size =~ /^[1-9]\d*$/)
+{
+	$log->logdie("Tile size must be a positive integer: $tile_size");
 }
 
 # quiet mode
@@ -176,6 +184,7 @@ for my $id (@ids)
 
 		my $tif_file   = "$aux_dir/${basename}d.tif";
 		my $jp2_file   = "$aux_dir/${basename}d.jp2";
+		my $tile_file  = "$aux_dir/${basename}tile.tif";
 		my $hires_file = "$aux_dir/${basename}hires.tif";
 		my $lores_file = "$aux_dir/${basename}lores.tif";
 
@@ -205,7 +214,7 @@ for my $id (@ids)
 		} elsif ($lores) {
 			@derivs = ($lores_file);
 		} else {
-			@derivs = ($jp2_file, $hires_file, $lores_file);
+			@derivs = ($jp2_file, $tile_file, $hires_file, $lores_file);
 		}
 
 		for my $img_file (@derivs)
@@ -216,6 +225,20 @@ for my $id (@ids)
 }
 
 
+sub tile_command
+{
+	my ($input_file, $output_file) = @_;
+	return
+	    "$convert_bin $input_file\[0]"
+	  . " -colorspace sRGB"
+	  . " -define tiff:tile-geometry=${tile_size}x${tile_size}"
+	  . " -compress jpeg "
+	  . " -quality 85"
+	  . " -define tiff:jpeg-tables-mode=3"
+	  . " ptif:$output_file";
+}
+
+
 sub convert
 {
 	my ($input_file, $output_file, $params) = @_;
@@ -223,10 +246,15 @@ sub convert
 		$log->warn("file $output_file already exists.");
 		return;
 	}
+
+	my $want_tile = $output_file =~ /tile\.tif$/;
+
 	my $convert = "";
 	my $tmp_file = "$tmpdir/" . basename($output_file);
 	if ($output_file =~ /\.jp2$/) {
 		$convert = "$kdu_compress -s $kdurc_file -i $input_file -o";
+	} elsif ($want_tile) {
+		$convert = tile_command($input_file, $tmp_file);
 	} else {
 		$convert = "$convert_bin $input_file\[0]";
 		if ($output_file =~ /d\.tif$/) {
@@ -249,7 +277,7 @@ sub convert
 			$convert = "ln -s $input_file";
 		}
 	}
-	$convert .= " $tmp_file";
+	$convert .= " $tmp_file" unless $want_tile;
 	sys($convert);
 	$log->info("Moving $host:$tmp_file to $host:$output_file");
 	move($tmp_file, $output_file)
