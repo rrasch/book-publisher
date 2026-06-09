@@ -487,7 +487,7 @@ sub mk_lept_tmpdir
 sub print_usage
 {
 	print STDERR <<"END_USAGE";
-Usage: $0 [OPTIONS] [BOOK_ID]...
+Usage: $0 [OPTIONS] [OBJECT_ID]...
 
 Options:
   -f, --force               Force removal of output files.

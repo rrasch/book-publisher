@@ -288,7 +288,7 @@ sub convert
 sub print_usage
 {
 	print STDERR <<"END_USAGE";
-Usage: $0 [options]
+Usage: $0 [OPTIONS] [OBJECT_ID]...
 
 Options:
   -f, --force          Force removal of output files
