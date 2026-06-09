@@ -12,7 +12,7 @@ use warnings;
 use File::Basename;
 use File::Copy;
 use File::Temp qw(tempdir);
-use Getopt::Std;
+use Getopt::Long;
 use Log::Log4perl::Level;
 use MODS;
 use MyConfig;
@@ -29,7 +29,23 @@ our $opt_f;  # force removal of output files
 our $opt_q;  # quiet logging
 our $opt_r;  # rstar directory
 our $opt_t;  # tmp directory base
-getopts('fqr:t:');
+
+my @args = @ARGV;
+
+Getopt::Long::Configure(
+	"bundling",          # allow short-option bundling like -qi
+	"no_auto_abbrev",    # require full long option names
+	"no_ignore_case"     # make option names case-sensitive
+);
+
+GetOptions(
+	'f|force'   => \$opt_f,
+	'q|quiet'   => \$opt_q,
+	'r|rstar=s' => \$opt_r,
+	't|tmp=s'   => \$opt_t,
+	'h|help'    => sub { print_usage(); exit(0); },
+  )
+  or do { print_usage(); exit(1); };
 
 # quiet mode
 if ($opt_q)
@@ -109,3 +125,18 @@ for my $id (@ids)
 	}
 }
 
+
+sub print_usage
+{
+	print <<"END_USAGE";
+Usage: $0 [OPTIONS] [OBJECT_ID]...
+
+Options:
+  -f, --force          Force removal of output files
+  -q, --quiet          Quiet logging
+  -r, --rstar <dir>    Rstar directory
+  -t, --tmp <dir>      Temporary directory base
+  -h, --help           Show this help message and exit
+
+END_USAGE
+}
