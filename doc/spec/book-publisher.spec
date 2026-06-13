@@ -35,6 +35,7 @@ Requires:       libtiff
 %if 0%{?fedora} >= 28 || 0%{?rhel} >= 8
 Requires:       libtiff-tools
 %endif
+Requires:       vips-tools
 Requires:       ocrodjvu
 Requires:       /usr/bin/pdftk
 Requires:       perl-Image-ExifTool

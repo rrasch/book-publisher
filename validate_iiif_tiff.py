@@ -99,7 +99,7 @@ def analyze_file(path):
 # renderers
 # =========================================================
 def render_cli(result):
-    print(f"FILE: {result['file']}")
+    print(f"\nFILE: {result['file']}")
 
     if "error" in result and result["error"]:
         print(f"ERROR: {result['error']}")

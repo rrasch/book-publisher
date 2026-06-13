@@ -225,20 +225,6 @@ for my $id (@ids)
 }
 
 
-sub tile_command
-{
-	my ($input_file, $output_file) = @_;
-	return
-	    "$convert_bin $input_file\[0]"
-	  . " -colorspace sRGB"
-	  . " -define tiff:tile-geometry=${tile_size}x${tile_size}"
-	  . " -compress jpeg "
-	  . " -quality 85"
-	  . " -define tiff:jpeg-tables-mode=3"
-	  . " ptif:$output_file";
-}
-
-
 sub convert
 {
 	my ($input_file, $output_file, $params) = @_;
@@ -254,7 +240,14 @@ sub convert
 	if ($output_file =~ /\.jp2$/) {
 		$convert = "$kdu_compress -s $kdurc_file -i $input_file -o";
 	} elsif ($want_tile) {
-		$convert = tile_command($input_file, $tmp_file);
+		$convert  = "vips tiffsave $input_file $tmp_file";
+		$convert .= " --tile";
+		$convert .= " --pyramid";
+		$convert .= " --tile-width $tile_size";
+		$convert .= " --tile-height $tile_size";
+		$convert .= " --compression jpeg";
+		$convert .= " --Q 85";
+		$convert .= " --bigtiff";
 	} else {
 		$convert = "$convert_bin $input_file\[0]";
 		if ($output_file =~ /d\.tif$/) {
