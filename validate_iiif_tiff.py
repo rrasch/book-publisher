@@ -11,7 +11,11 @@ import os
 # system
 # =========================================================
 def run(cmd):
-    return subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
+    return subprocess.check_output(
+        cmd,
+        universal_newlines=True,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 # =========================================================
