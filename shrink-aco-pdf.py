@@ -7,32 +7,45 @@
 #
 # rasan@nyu.edu
 
-from pprint import pformat
 import argparse
 import functools
 import glob
 import logging
 import math
 import os
-import PIL.Image
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
-import time
+from pprint import pformat
 
+import PIL.Image
 
 print = functools.partial(print, flush=True)
+
+logger = logging.getLogger(__name__)
+
+
+def log_output(name, output):
+    if output:
+        if isinstance(output, bytes):
+            output = output.decode(errors="replace")
+        logger.error("%s:\n%s", name, output)
 
 
 def do_cmd(cmdlist, **kwargs):
     cmd = list(map(str, cmdlist))
-    logging.debug("Running command: %s", " ".join(cmd))
+    cmd_str = " ".join(cmd)
+    logger.debug("Running command: %s", cmd_str)
     try:
         process = subprocess.run(cmd, check=True, **kwargs)
-    except Exception as e:
-        logging.exception(e)
+    except subprocess.CalledProcessError as e:
+        logger.error(
+            "Command '%s' failed with exit code %d", cmd_str, e.returncode
+        )
+        log_output("stdout", e.stdout)
+        log_output("stderr", e.stderr)
         sys.exit(1)
     return process
 
@@ -41,36 +54,71 @@ def round_down_to_even(num):
     return math.floor(float(num) / 2.0) * 2
 
 
+def get_img_data(col_idx, output_line):
+    """Parse a pdfimages output line into a dictionary of metadata values.
+
+    Args:
+        col_idx: Dictionary mapping metadata names to their column indexes.
+        output_line: A line of output from pdfimages.
+
+    Returns:
+        Dictionary mapping metadata names to their values from output_line.
+    """
+    val_list = output_line.split()
+    logger.debug("val_list: %s", pformat(val_list))
+
+    img_data = {name: val_list[col_idx[name]] for name in col_idx}
+    logger.debug("img_data: %s", pformat(img_data))
+
+    return img_data
+
+
 def get_img_info(pdf_file):
+    """Get image information from a PDF file using pdfimages tool.
+
+    Args:
+        pdf_file: Path to the PDF file.
+
+    Returns:
+        A dictionary containing the image file extension, DPI, and whether
+        the PDF contains an image mask, or None if the PDF contains no images.
+    """
     ret = do_cmd(
         ["pdfimages", "-l", 1, "-list", pdf_file],
         stdout=subprocess.PIPE,
         universal_newlines=True,
     )
+
     output = ret.stdout.splitlines()
-    logging.debug("pdfimages output: %s", output)
+    logger.debug("pdfimages output: %s", output)
+
     if len(output) < 3:
+        logger.warning(" %s has no images".pdf_file)
         return None
 
-    col_idx = {header: i for i, col in enumerate(output[0].split())}
-    logging.debug("column index: %s", pformat(col_idx))
+    col_idx = {col: i for i, col in enumerate(output[0].split())}
+    logger.debug("column index: %s", pformat(col_idx))
 
-    imgdata = output[2].split()
-    ext = {"jpeg": "jpg", "jpx": "jp2"}
-    codec = imgdata[col_idx["enc"]]
-    dpi = round_down_to_even(imgdata[col_idx["x-ppi"]])
+    img_data = get_img_data(col_idx, output[2])
+
+    codec = img_data["enc"]
+    dpi = round_down_to_even(img_data["x-ppi"])
+
     mask = False
     for line in output[2:]:
-        logging.debug(line)
-        imgdata = line.split()
-        if imgdata[col_idx["type"]] == "mask":
+        logger.debug(line)
+        img_data = get_img_data(col_idx, line)
+        if img_data["type"] == "mask":
             mask = True
             break
+
+    ext = {"jpeg": "jpg", "jpx": "jp2"}
+
     return {"ext": ext.get(codec), "dpi": dpi, "mask": mask}
 
 
 def mv(src, dst):
-    logging.debug("Moving %s to %s", src, dst)
+    logger.debug("Moving %s to %s", src, dst)
     shutil.move(src, dst)
 
 
@@ -140,10 +188,10 @@ def main():
     args = parser.parse_args()
 
     if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
-    logging.debug("Input file: %s", args.input_file)
-    logging.debug("Output file: %s", args.output_file)
+    logger.debug("Input file: %s", args.input_file)
+    logger.debug("Output file: %s", args.output_file)
 
     if args.input_file == args.output_file:
         sys.exit("Input file can't be the same as output file.")
@@ -152,7 +200,7 @@ def main():
         sys.exit("Output file already exists.")
 
     input_dir, input_file = os.path.split(args.input_file)
-    logging.debug("input dir: %s", input_dir)
+    logger.debug("input dir: %s", input_dir)
 
     hocr_files = sorted(glob.glob(f"{input_dir}/*_hocr.html"))
 
@@ -164,7 +212,7 @@ def main():
     if match:
         partner_id = match.group(1)
         aux_dir = f"{rstar_dir}/content/{partner_id}/aco/wip/se/{objid}/aux"
-        logging.debug("aux_dir: %s", aux_dir)
+        logger.debug("aux_dir: %s", aux_dir)
         aux_exists = os.path.isdir(aux_dir)
 
     tmp_rootdir = f"{rstar_dir}/tmp/aco"
@@ -172,14 +220,12 @@ def main():
         tmp_rootdir = "/tmp"
 
     # tmpdir = tempfile.TemporaryDirectory(dir=tmp_rootdir)
-    # logging.debug("temp directory: %s", tmpdir.name)
+    # logger.debug("temp directory: %s", tmpdir.name)
     tmpdir = tempfile.mkdtemp(dir=tmp_rootdir)
-    logging.debug("temp directory: %s", tmpdir)
+    logger.debug("temp directory: %s", tmpdir)
 
     # split pdf into individual pdfs for each page
-    do_cmd(
-        ["qpdf", "--split-pages", args.input_file, "{}/%d.pdf".format(tmpdir)]
-    )
+    do_cmd(["qpdf", "--split-pages", args.input_file, f"{tmpdir}/%d.pdf"])
 
     # Loop over each page until we have an hocr file
     # and reduced jpg for each page
@@ -191,7 +237,7 @@ def main():
         imginfo = get_img_info(pdf_file)
         if not imginfo:
             sys.exit(f"Can't find any images in {pdf_file}")
-        logging.debug("imginfo: %s", imginfo)
+        logger.debug("imginfo: %s", imginfo)
         if imginfo["ext"] is None or imginfo["mask"]:
             img_ext = "png"
             pdfimgs_arg = "-png"
@@ -203,18 +249,18 @@ def main():
             scale_hocr = args.dpi / imginfo["dpi"]
             if imginfo["mask"]:
                 scale_hocr *= (4 / 3) * (1 / 2)
-            logging.debug("Setting scale for hocr to %s", scale_hocr)
+            logger.debug("Setting scale for hocr to %s", scale_hocr)
 
         # set up file paths
         basename = os.path.splitext(pdf_file)[0]
-        pdfimgs_dir = os.path.join(tmpdir, "pdfimgs_%03d" % (i + 1))
+        pdfimgs_dir = os.path.join(tmpdir, f"pdfimgs_{i + 1:03d}")
         pdfimgs_base = os.path.join(pdfimgs_dir, os.path.basename(basename))
         djvu_file = basename + ".djvu"
         hocr_file = basename + ".hocr"
         new_jpg_file = basename + ".jpg"
         old_img_file = pdfimgs_base + "-000." + img_ext
 
-        logging.debug("Creating directory %s", pdfimgs_dir)
+        logger.debug("Creating directory %s", pdfimgs_dir)
         os.mkdir(pdfimgs_dir)
 
         # extract jpg image from pdf page
@@ -270,9 +316,9 @@ def main():
         # Check that shrunken image has correct resolution
         with PIL.Image.open(new_jpg_file) as new_jpg:
             new_jpg_dpi = new_jpg.info["dpi"][0]
-        logging.debug("dpi %s: %s", new_jpg_file, new_jpg_dpi)
+        logger.debug("dpi %s: %s", new_jpg_file, new_jpg_dpi)
         if new_jpg_dpi != args.dpi:
-            logging.error(
+            logger.error(
                 "Expected dpi %s for %s, found %s instead",
                 args.dpi,
                 new_jpg_file,
@@ -281,7 +327,7 @@ def main():
             sys.exit(1)
 
         # # delete images extracted from pdfimages
-        # logging.debug("Removing directory %s", pdfimgs_dir)
+        # logger.debug("Removing directory %s", pdfimgs_dir)
         # shutil.rmtree(pdfimgs_dir)
 
         if args.use_existing_hocr:
@@ -290,7 +336,7 @@ def main():
                 j = 0
             else:
                 j = i + 1
-            logging.debug("Copying %s to %s", hocr_files[j], hocr_file)
+            logger.debug("Copying %s to %s", hocr_files[j], hocr_file)
             shutil.copyfile(hocr_files[j], hocr_file)
         else:
             # convert pdf page to djvu file
@@ -301,7 +347,7 @@ def main():
                 ret = do_cmd(
                     ["djvu2hocr", djvu_file], stdout=f, stderr=subprocess.PIPE
                 )
-                logging.debug(ret.stderr.decode().strip())
+                logger.debug(ret.stderr.decode().strip())
 
         # generating hocr is time consuming so we copy file
         # to aux directory for later use
@@ -315,8 +361,6 @@ def main():
     tmp_pdf_file = f"{tmpdir}/tmp.pdf"
     hocr_pdf = [
         "hocr-pdf",
-        "--scale-hocr",
-        scale_hocr,
         "--savefile",
         tmp_pdf_file,
     ]
@@ -327,7 +371,7 @@ def main():
     do_cmd(["exiftool", "-q", "-m", "-all:all=", tmp_pdf_file])
     do_cmd(["qpdf", "--linearize", tmp_pdf_file, args.output_file])
 
-    logging.debug("Removing directory %s", tmpdir)
+    logger.debug("Removing directory %s", tmpdir)
     shutil.rmtree(tmpdir)
 
 
