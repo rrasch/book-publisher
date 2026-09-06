@@ -25,9 +25,14 @@ import PIL.Image
 sys.path.append("/usr/local/dlib/task-queue")
 from tqcommon import get_rstar_dir
 
-print = functools.partial(print, flush=True)
+RSTAR_DIR = get_rstar_dir()
+
+SUPPORTED_DPI = (72, 96, 200)
+DEFAULT_DPI = 72
 
 logger = logging.getLogger(__name__)
+
+print = functools.partial(print, flush=True)
 
 
 def log_output(name, output):
@@ -125,7 +130,7 @@ def mv(src, dst):
     shutil.move(src, dst)
 
 
-def validate_tools():
+def check_dependencies():
     # Check for required tools
     tools = [
         "convert",
@@ -157,9 +162,28 @@ def parse_args():
     parser.add_argument(
         "output_file", metavar="OUTPUT_FILE", help="Output PDF file"
     )
-    parser.add_argument("-t", "--tmpdir", help="Temp directory")
     parser.add_argument(
         "-d", "--debug", help="Enable debugging messages", action="store_true"
+    )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=DEFAULT_DPI,
+        choices=SUPPORTED_DPI,
+        help="Resolution for PDF pages (default: %(default)s)",
+    )
+    parser.add_argument(
+        "-m",
+        "--max-pages",
+        type=int,
+        default=-1,
+        help="Maximum number of pages to process",
+    )
+    parser.add_argument(
+        "-t",
+        "--tmpdir",
+        default=os.path.join(RSTAR_DIR, "tmp"),
+        help="Temp directory (default: %(default)s)",
     )
     parser.add_argument(
         "-f",
@@ -171,20 +195,6 @@ def parse_args():
         "--use-existing-hocr",
         action="store_true",
         help="Use existing hOCR files from input directory",
-    )
-    parser.add_argument(
-        "-m",
-        "--max-pages",
-        type=int,
-        default=-1,
-        help="Maximum number of pages to process",
-    )
-    parser.add_argument(
-        "--dpi",
-        type=int,
-        default=72,
-        choices=[72, 96, 200],
-        help="Resolution for PDF pages",
     )
     return parser.parse_args()
 
@@ -200,49 +210,68 @@ def validate_input(args):
         sys.exit("Output file already exists.")
 
 
-def setup_logging(args):
+def setup_logging(debug):
+    level = logging.DEBUG if debug else logging.INFO
+
     logging.basicConfig(
         format="%(asctime)s - shrink-aco-pdf - %(levelname)s - %(message)s",
         datefmt="%m/%d/%Y %I:%M:%S %p",
+        level=level,
     )
 
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
+
+def fatal(msg, *args, **kwargs):
+    logger.error(msg, *args, **kwargs)
+    sys.exit(1)
 
 
-def shrink_pdf(args, tmpdir):
-    input_dir, input_file = os.path.split(args.input_file)
+def do_shrink(
+    input_file,
+    output_file,
+    workdir,
+    dpi,
+    *,
+    max_pages=-1,
+    use_existing_hocr=False,
+):
+    if os.listdir(workdir):
+        fatal("Directory is not empty: %s", workdir)
+
+    if dpi not in SUPPORTED_DPI:
+        fatal("Unsupported DPI: %s (supported values: %s)", dpi, SUPPORTED_DPI)
+
+    logger.info("Processing file %s in work dir %s", input_file, workdir)
+
+    input_dir, input_basename = os.path.split(input_file)
     logger.debug("input dir: %s", input_dir)
 
     hocr_files = sorted(glob.glob(f"{input_dir}/*_hocr.html"))
 
-    rstar_dir = "/content/prod/rstar"
-
     aux_exists = False
-    objid = os.path.splitext(input_file)[0]
+    objid = os.path.splitext(input_basename)[0]
     match = re.search(r"^([a-z]+)_aco\d{6}$", objid)
     if match:
         partner_id = match.group(1)
-        aux_dir = f"{rstar_dir}/content/{partner_id}/aco/wip/se/{objid}/aux"
+        aux_dir = f"{RSTAR_DIR}/content/{partner_id}/aco/wip/se/{objid}/aux"
         logger.debug("aux_dir: %s", aux_dir)
         aux_exists = os.path.isdir(aux_dir)
 
-    logger.debug("temp directory: %s", tmpdir)
-
     # split pdf into individual pdfs for each page
-    do_cmd(["qpdf", "--split-pages", args.input_file, f"{tmpdir}/%d.pdf"])
+    do_cmd(["qpdf", "--split-pages", input_file, f"{workdir}/%d.pdf"])
 
     # Loop over each page until we have an hocr file
     # and reduced jpg for each page
-    for i, pdf_file in enumerate(sorted(glob.glob(f"{tmpdir}/*.pdf"))):
+    for i, pdf_file in enumerate(sorted(glob.glob(f"{workdir}/*.pdf"))):
 
-        if args.max_pages > 0 and i == args.max_pages:
+        if max_pages > 0 and i == max_pages:
             break
 
         imginfo = get_img_info(pdf_file)
+        logger.debug("imginfo: %s", imginfo)
+
         if not imginfo:
             sys.exit(f"Can't find any images in {pdf_file}")
-        logger.debug("imginfo: %s", imginfo)
+
         if imginfo["ext"] is None or imginfo["mask"]:
             img_ext = "png"
             pdfimgs_arg = "-png"
@@ -250,15 +279,9 @@ def shrink_pdf(args, tmpdir):
             img_ext = imginfo["ext"]
             pdfimgs_arg = "-all"
 
-        if i == 0:
-            scale_hocr = args.dpi / imginfo["dpi"]
-            if imginfo["mask"]:
-                scale_hocr *= (4 / 3) * (1 / 2)
-            logger.debug("Setting scale for hocr to %s", scale_hocr)
-
         # set up file paths
         basename = os.path.splitext(pdf_file)[0]
-        pdfimgs_dir = os.path.join(tmpdir, f"pdfimgs_{i + 1:03d}")
+        pdfimgs_dir = os.path.join(workdir, f"pdfimgs_{i + 1:03d}")
         pdfimgs_base = os.path.join(pdfimgs_dir, os.path.basename(basename))
         djvu_file = basename + ".djvu"
         hocr_file = basename + ".hocr"
@@ -310,9 +333,9 @@ def shrink_pdf(args, tmpdir):
             "PixelsPerInch",
             old_img_file,
             "-resample",
-            args.dpi,
+            dpi,
             "-density",
-            args.dpi,
+            dpi,
             "-units",
             "PixelsPerInch",
             new_jpg_file,
@@ -322,10 +345,10 @@ def shrink_pdf(args, tmpdir):
         with PIL.Image.open(new_jpg_file) as new_jpg:
             new_jpg_dpi = new_jpg.info["dpi"][0]
         logger.debug("dpi %s: %s", new_jpg_file, new_jpg_dpi)
-        if new_jpg_dpi != args.dpi:
+        if new_jpg_dpi != dpi:
             logger.error(
                 "Expected dpi %s for %s, found %s instead",
-                args.dpi,
+                dpi,
                 new_jpg_file,
                 new_jpg_dpi,
             )
@@ -335,7 +358,7 @@ def shrink_pdf(args, tmpdir):
         # logger.debug("Removing directory %s", pdfimgs_dir)
         # shutil.rmtree(pdfimgs_dir)
 
-        if args.use_existing_hocr:
+        if use_existing_hocr:
             # hocr files seem to shifted by 1
             if i == len(hocr_files) - 1:
                 j = 0
@@ -363,34 +386,55 @@ def shrink_pdf(args, tmpdir):
 
     # reassemble pdf by combining reduced images
     # and extracted hocr files
-    tmp_pdf_file = f"{tmpdir}/tmp.pdf"
+    tmp_pdf_file = os.path.join(workdir, "tmp.pdf")
     hocr_pdf = [
         "hocr-pdf",
         "--savefile",
         tmp_pdf_file,
     ]
-    if args.use_existing_hocr:
+    if use_existing_hocr:
         hocr_pdf.append("--reverse")
-    hocr_pdf.append(tmpdir)
+    hocr_pdf.append(workdir)
     do_cmd(hocr_pdf)
     do_cmd(["exiftool", "-q", "-m", "-all:all=", tmp_pdf_file])
-    do_cmd(["qpdf", "--linearize", tmp_pdf_file, args.output_file])
+    do_cmd(["qpdf", "--linearize", tmp_pdf_file, output_file])
 
-    logger.debug("Removing directory %s", tmpdir)
-    shutil.rmtree(tmpdir)
+
+def shrink_pdf(
+    input_file,
+    output_file,
+    tmpdir,
+    dpi,
+    *,
+    max_pages=-1,
+    use_existing_hocr=False,
+):
+    with tempfile.TemporaryDirectory(dir=tmpdir) as workdir:
+        do_shrink(
+            input_file,
+            output_file,
+            workdir=workdir,
+            dpi=dpi,
+            max_pages=max_pages,
+            use_existing_hocr=use_existing_hocr,
+        )
 
 
 def main():
-    validate_tools()
-
     args = parse_args()
 
-    setup_logging(args)
+    setup_logging(args.debug)
 
-    tmproot = args.tmpdir or os.path.join(get_rstar_dir(), "tmp")
+    check_dependencies()
 
-    with tempfile.TemporaryDirectory(dir=tmproot) as tmpdir:
-        shrink_pdf(args, tmpdir)
+    shrink_pdf(
+        args.input_file,
+        args.output_file,
+        tmpdir=args.tmpdir,
+        dpi=args.dpi,
+        max_pages=args.max_pages,
+        use_existing_hocr=args.use_existing_hocr,
+    )
 
 
 if __name__ == "__main__":
