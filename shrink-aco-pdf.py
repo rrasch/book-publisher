@@ -436,10 +436,10 @@ def shrink_pdf(
         "hocr-pdf",
         "--savefile",
         tmp_pdf_file,
+        "--reverse",
+        "auto" if use_existing_hocr else "no",
+        workdir,
     ]
-    if use_existing_hocr:
-        hocr_pdf.append("--reverse")
-    hocr_pdf.append(workdir)
     do_cmd(hocr_pdf)
     do_cmd(["exiftool", "-q", "-m", "-all:all=", tmp_pdf_file])
     do_cmd(["qpdf", "--linearize", tmp_pdf_file, output_file])
