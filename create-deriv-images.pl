@@ -139,6 +139,11 @@ for my $id (@ids)
 	my $data_dir = "$wip_dir/$id/data";
 	my $aux_dir  = "$wip_dir/$id/aux";
 
+	unless (-r $data_dir && -x $data_dir)
+	{
+		$log->logdie("Can't access directory $data_dir: $!");
+	}
+
 	my @deriv_mkrs = sort(glob("$data_dir/*d.tif"));
 
 	if (!@deriv_mkrs)
