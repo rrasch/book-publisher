@@ -2,25 +2,47 @@
 
 import argparse
 import logging
-import sys
 import os
+import sys
 from pathlib import Path
 from typing import List
 
+PACKAGE_DIRS = ["aco-scripts", "task-queue"]
+
 SCRIPT_DIR = Path(__file__).resolve().parent
-ACO_SCRIPTS_DIR = (SCRIPT_DIR / ".." / "aco-scripts").resolve()
-if str(ACO_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(ACO_SCRIPTS_DIR))
 
-from util import generate_pdfs
+for package_dir in PACKAGE_DIRS:
+    path = str((SCRIPT_DIR / ".." / package_dir).resolve())
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
+from pdf_utils import generate_pdfs
+from tqcommon import get_tmpdir
+
+logger = logging.getLogger(__name__)
 
 
-def get_dmaker_images(book_dir: Path) -> List[Path]:
-    return sorted(book_dir.glob("*_d.tif"))
+def get_dmaker_images(img_dir: Path) -> List[Path]:
+    return sorted(img_dir.glob("*_d.tif"))
 
 
-def get_hocr_files(aux_dir: Path) -> List[Path]:
-    return sorted(aux_dir.glob("*.hocr"))
+def get_hocr_files(hocr_dir: Path) -> List[Path]:
+    return sorted(hocr_dir.glob("*.hocr"))
+
+
+def set_tmpdir(args):
+    tmpdir = args.tmpdir or os.environ.get("TMPDIR") or get_tmpdir()
+    tmpdir = Path(tmpdir).resolve()
+
+    if not tmpdir.exists():
+        logger.error(
+            "Path '%s' is not a directory and "
+            "can't be used as a temporary directory.",
+            tmpdir,
+        )
+
+    logger.info("Setting environment variable TMPDIR=%s", tmpdir)
+    os.environ["TMPDIR"] = str(tmpdir)
 
 
 def main():
@@ -28,18 +50,35 @@ def main():
         description="Generate PDFs from dmaker TIFF and HOCR files."
     )
     parser.add_argument(
+        "book_ids",
+        nargs="*",
+        help="Optional book IDs. If omitted, discovers all IDs under wip/se.",
+    )
+    parser.add_argument(
         "-r",
         "--rstar-dir",
         required=True,
         type=Path,
-        help="Root rstar content directory.",
+        help=(
+            "RStar content directory for collection, "
+            "e.g. /content/prod/rstar/content/aub/aco"
+        ),
+    )
+    parser.add_argument(
+        "-m",
+        "--max-workers",
+        type=int,
+        default=1,
+        help=(
+            "Maximum number of image processing workers. "
+            "If 0, use num CPUs - 1: (default: %(default)s)"
+        ),
     )
     parser.add_argument(
         "-t",
         "--tmpdir",
         type=Path,
-        default="/content/prod/rstar/tmp",
-        help="Temporary directory (default: %(default)s).",
+        help="Temporary directory.",
     )
     parser.add_argument(
         "-q",
@@ -55,21 +94,12 @@ def main():
         action="store_true",
         help="Force overwrite of existing output files.",
     )
-    parser.add_argument(
-        "book_ids",
-        nargs="*",
-        help="Optional book IDs. If omitted, discovers all IDs under wip/se.",
-    )
     args = parser.parse_args()
 
     log_level = logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(level=log_level, format="%(message)s")
 
-    tmpdir = args.tmpdir.resolve()
-    if not tmpdir.exists():
-        sys.exit(f"ERROR: tmpdir does not exist: {tmpdir}")
-    os.environ["TMPDIR"] = str(tmpdir)
-    logging.info(f"Using TMPDIR={tmpdir}")
+    set_tmpdir(args)
 
     rstar_dir: Path = args.rstar_dir
     if not rstar_dir.exists():
@@ -87,38 +117,40 @@ def main():
         book_ids = sorted(p.name for p in se_dir.iterdir() if p.is_dir())
         if not book_ids:
             sys.exit(f"ERROR: No book IDs found in {se_dir}")
-        logging.info(f"Discovered book IDs: {', '.join(book_ids)}")
+        logger.info(f"Discovered book IDs: {', '.join(book_ids)}")
 
     for book_id in book_ids:
         book_dir = rstar_dir / "wip" / "se" / book_id
+        data_dir = book_dir / "data"
         aux_dir = book_dir / "aux"
 
-        if not book_dir.exists():
-            logging.error(f"{book_id}: book_dir does not exist: {book_dir}")
-            sys.exit(1)
+        for path in (book_dir, data_dir, aux_dir):
+            if not path.exists():
+                logger.error(f"{book_id}: Directory {book_dir} does not exist")
+                sys.exit(1)
 
-        if not aux_dir.exists():
-            logging.error(f"{book_id}: aux_dir does not exist: {aux_dir}")
-            sys.exit(1)
+            if not path.is_dir():
+                logger.error(f"{book_id}: {book_dir} is not a directory")
+                sys.exit(1)
 
         dmaker_imgs = get_dmaker_images(aux_dir)
-        hocr_files = get_hocr_files(aux_dir)
+        hocr_files = get_hocr_files(data_dir)
 
-        logging.info(f"\nBook ID: {book_id}")
-        logging.info(f"Book directory: {book_dir}")
+        logger.info(f"\nBook ID: {book_id}")
+        logger.info(f"Book directory: {book_dir}")
 
-        logging.info(f"  Dmaker images ({len(dmaker_imgs)}):")
+        logger.info(f"  Dmaker images ({len(dmaker_imgs)}):")
         for img in dmaker_imgs:
-            logging.info(f"    {img.name}")
+            logger.info(f"    {img.name}")
 
-        logging.info(f"  HOCR files ({len(hocr_files)}):")
+        logger.info(f"  HOCR files ({len(hocr_files)}):")
         for hocr in hocr_files:
-            logging.info(f"    {hocr.name}")
+            logger.info(f"    {hocr.name}")
 
-        logging.info("-" * 60)
+        logger.info("-" * 60)
 
         if len(dmaker_imgs) != len(hocr_files):
-            logging.error(
+            logger.error(
                 f"{book_id}: Page mismatch — {len(dmaker_imgs)} TIFF(s) vs"
                 f" {len(hocr_files)} HOCR file(s). Aborting."
             )
@@ -130,7 +162,7 @@ def main():
             dmaker_imgs,
             hocr_files,
             output_base,
-            max_workers=1,
+            max_workers=args.max_workers,
             overwrite=args.overwrite,
         )
 
