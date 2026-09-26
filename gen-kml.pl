@@ -155,7 +155,13 @@ for my $wip_dir (@wip_dirs)
 		my $mods_lang = $mods->get_languages();
 		$mods->set_language("Latn") if $mods_lang->{Latn};
 
-		my $handle = Util::get_handle("$wip_dir/$id/handle");
+		my $handle_file = "$wip_dir/$id/handle";
+		if (!-f $handle_file)
+		{
+			$log->warn("Handle file $handle_file doesn't exist.");
+			next;
+		}
+		my $handle = Util::get_handle($handle_file);
 		my $handle_url = "http://hdl.handle.net/$handle";
 		my $res = $agent->get($handle_url);
 		my $loc = $res->header('location') || "";
