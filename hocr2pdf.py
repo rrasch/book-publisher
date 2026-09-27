@@ -136,6 +136,13 @@ def main():
         dmaker_imgs = get_dmaker_images(aux_dir)
         hocr_files = get_hocr_files(data_dir)
 
+        if not hocr_files:
+            logger.warning(
+                f"{book_id}: No hOCR files found in {data_dir}, "
+                f"looking in {aux_dir}."
+            )
+            hocr_files = get_hocr_files(aux_dir)
+
         logger.info(f"\nBook ID: {book_id}")
         logger.info(f"Book directory: {book_dir}")
 
@@ -153,6 +160,12 @@ def main():
             logger.error(
                 f"{book_id}: Page mismatch — {len(dmaker_imgs)} TIFF(s) vs"
                 f" {len(hocr_files)} HOCR file(s). Aborting."
+            )
+            sys.exit(1)
+
+        if not dmaker_imgs:
+            logger.error(
+                f"There are no images or hOCR files for {book_id}. Aborting."
             )
             sys.exit(1)
 
